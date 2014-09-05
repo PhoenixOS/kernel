@@ -33,6 +33,13 @@ config DRM_DP_AUX_CHARDEV
 	  read and write values to arbitrary DPCD registers on the DP aux
 	  channel.
 
+config NO_GPU_AUTHENTICATION
+	bool "Disable GPU authentication"
+	depends on DRM
+	default n
+	help
+	  Choose this option if you want to disable GPU authentication.
+
 config DRM_KMS_HELPER
 	tristate
 	depends on DRM
