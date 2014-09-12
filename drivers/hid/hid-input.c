@@ -502,7 +502,8 @@ static void hidinput_configure_usage(struct hid_input *hidinput, struct hid_fiel
 
 	field->hidinput = hidinput;
 
-	if (field->flags & HID_MAIN_ITEM_CONSTANT)
+	if ((field->flags & HID_MAIN_ITEM_CONSTANT) &&
+			(usage->hid & HID_USAGE_PAGE) != HID_UP_ASUSVENDOR)
 		goto ignore;
 
 	/* Ignore if report count is out of bounds. */
@@ -986,6 +987,17 @@ static void hidinput_configure_usage(struct hid_input *hidinput, struct hid_fiel
 	case HID_UP_PID:
 		switch (usage->hid & HID_USAGE) {
 		case 0xa4: map_key_clear(BTN_DEAD);	break;
+		default: goto ignore;
+		}
+		break;
+
+	case HID_UP_ASUSVENDOR:
+		switch (usage->hid & HID_USAGE) {
+		case 0x06C: map_key_clear(KEY_SLEEP);		break; /* Fn+F1: Sleep */
+		case 0x088: map_key_clear(KEY_WLAN);		break; /* Fn+F2: Wifi & BT */
+		case 0x010: map_key_clear(KEY_BRIGHTNESSDOWN);	break; /* Fn+F5: Brightness down */
+		case 0x020: map_key_clear(KEY_BRIGHTNESSUP);	break; /* Fn+F6: Brightness up */
+		case 0x06B: map_key_clear(KEY_F24);		break; /* Fn+F9: Touchpad */
 		default: goto ignore;
 		}
 		break;
