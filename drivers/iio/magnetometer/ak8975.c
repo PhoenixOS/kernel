@@ -1079,6 +1079,36 @@ static const struct i2c_device_id ak8975_id[] = {
 
 MODULE_DEVICE_TABLE(i2c, ak8975_id);
 
+#if defined(CONFIG_ACPI)
+static int ak8975_detect(struct i2c_client *temp_client,
+			 struct i2c_board_info *info)
+{
+	struct i2c_adapter *adapter;
+	int i, j;
+	int ret;
+
+	/* autodetect only when we are behind a mux */
+	adapter = i2c_parent_is_i2c_adapter(temp_client->adapter);
+	if (!adapter)
+		return -ENODEV;
+
+	for (i = 0; i < AK_MAX_TYPE; ++i) {
+		ret = ak8975_who_i_am(temp_client, i);
+		if (ret >= 0) {
+			for (j = 0; j < ARRAY_SIZE(ak8975_id) - 1; ++j) {
+				if (i == (int)ak8975_id[j].driver_data) {
+					strlcpy(info->type, ak8975_id[j].name,
+						I2C_NAME_SIZE);
+					return 0;
+				}
+			}
+		}
+	}
+
+	return -ENODEV;
+}
+#endif
+
 static const struct of_device_id ak8975_of_match[] = {
 	{ .compatible = "asahi-kasei,ak8975", },
 	{ .compatible = "ak8975", },
@@ -1102,6 +1132,11 @@ static struct i2c_driver ak8975_driver = {
 	.probe		= ak8975_probe,
 	.remove		= ak8975_remove,
 	.id_table	= ak8975_id,
+#if defined(CONFIG_ACPI)
+	.class		= I2C_CLASS_HWMON,
+	.address_list	= I2C_ADDRS(0x0C, 0x0D, 0x0E, 0x0F),
+	.detect		= ak8975_detect,
+#endif
 };
 module_i2c_driver(ak8975_driver);
 
