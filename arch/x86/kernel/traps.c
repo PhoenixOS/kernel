@@ -285,7 +285,6 @@ dotraplinkage void do_##name(struct pt_regs *regs, long error_code)	\
 
 DO_ERROR(X86_TRAP_DE,     SIGFPE,  "divide error",		divide_error)
 DO_ERROR(X86_TRAP_OF,     SIGSEGV, "overflow",			overflow)
-DO_ERROR(X86_TRAP_UD,     SIGILL,  "invalid opcode",		invalid_op)
 DO_ERROR(X86_TRAP_OLD_MF, SIGFPE,  "coprocessor segment overrun",coprocessor_segment_overrun)
 DO_ERROR(X86_TRAP_TS,     SIGSEGV, "invalid TSS",		invalid_TSS)
 DO_ERROR(X86_TRAP_NP,     SIGBUS,  "segment not present",	segment_not_present)
@@ -306,6 +305,257 @@ __visible void __noreturn handle_stack_overflow(const char *message,
 	panic(message);
 }
 #endif
+
+typedef union {
+	u64 u64[2];
+	s64 s64[2];
+	u32 u32[4];
+	s32 s32[4];
+	u16 u16[8];
+	s16 s16[8];
+	u8 u8[16];
+	s8 s8[16];
+} ssp_m128 __aligned(16);
+
+static void ssp_abs_epi8(ssp_m128 *A)
+{
+	A->s8[0]  = (A->s8[0] < 0) ? -A->s8[0]  : A->s8[0];
+	A->s8[1]  = (A->s8[1] < 0) ? -A->s8[1]  : A->s8[1];
+	A->s8[2]  = (A->s8[2] < 0) ? -A->s8[2]  : A->s8[2];
+	A->s8[3]  = (A->s8[3] < 0) ? -A->s8[3]  : A->s8[3];
+	A->s8[4]  = (A->s8[4] < 0) ? -A->s8[4]  : A->s8[4];
+	A->s8[5]  = (A->s8[5] < 0) ? -A->s8[5]  : A->s8[5];
+	A->s8[6]  = (A->s8[6] < 0) ? -A->s8[6]  : A->s8[6];
+	A->s8[7]  = (A->s8[7] < 0) ? -A->s8[7]  : A->s8[7];
+	A->s8[8]  = (A->s8[8] < 0) ? -A->s8[8]  : A->s8[8];
+	A->s8[9]  = (A->s8[9] < 0) ? -A->s8[9]  : A->s8[9];
+	A->s8[10] = (A->s8[10] < 0) ? -A->s8[10] : A->s8[10];
+	A->s8[11] = (A->s8[11] < 0) ? -A->s8[11] : A->s8[11];
+	A->s8[12] = (A->s8[12] < 0) ? -A->s8[12] : A->s8[12];
+	A->s8[13] = (A->s8[13] < 0) ? -A->s8[13] : A->s8[13];
+	A->s8[14] = (A->s8[14] < 0) ? -A->s8[14] : A->s8[14];
+	A->s8[15] = (A->s8[15] < 0) ? -A->s8[15] : A->s8[15];
+}
+
+static void ssp_abs_epi16(ssp_m128 *A)
+{
+	A->s16[0] = (A->s16[0] < 0) ? -A->s16[0]  : A->s16[0];
+	A->s16[1] = (A->s16[1] < 0) ? -A->s16[1]  : A->s16[1];
+	A->s16[2] = (A->s16[2] < 0) ? -A->s16[2]  : A->s16[2];
+	A->s16[3] = (A->s16[3] < 0) ? -A->s16[3]  : A->s16[3];
+	A->s16[4] = (A->s16[4] < 0) ? -A->s16[4]  : A->s16[4];
+	A->s16[5] = (A->s16[5] < 0) ? -A->s16[5]  : A->s16[5];
+	A->s16[6] = (A->s16[6] < 0) ? -A->s16[6]  : A->s16[6];
+	A->s16[7] = (A->s16[7] < 0) ? -A->s16[7]  : A->s16[7];
+}
+
+static void ssp_abs_epi32(ssp_m128 *A)
+{
+	A->s32[0] = (A->s32[0] < 0) ? -A->s32[0]  : A->s32[0];
+	A->s32[1] = (A->s32[1] < 0) ? -A->s32[1]  : A->s32[1];
+	A->s32[2] = (A->s32[2] < 0) ? -A->s32[2]  : A->s32[2];
+	A->s32[3] = (A->s32[3] < 0) ? -A->s32[3]  : A->s32[3];
+}
+
+static ssp_m128 ssp_shuffle_epi8(ssp_m128 *A, ssp_m128 *MSK)
+{
+	ssp_m128 B;
+
+	B.s8[0]  = (MSK->s8[0]  & 0x80) ? 0 : A->s8[(MSK->s8[0]  & 0xf)];
+	B.s8[1]  = (MSK->s8[1]  & 0x80) ? 0 : A->s8[(MSK->s8[1]  & 0xf)];
+	B.s8[2]  = (MSK->s8[2]  & 0x80) ? 0 : A->s8[(MSK->s8[2]  & 0xf)];
+	B.s8[3]  = (MSK->s8[3]  & 0x80) ? 0 : A->s8[(MSK->s8[3]  & 0xf)];
+	B.s8[4]  = (MSK->s8[4]  & 0x80) ? 0 : A->s8[(MSK->s8[4]  & 0xf)];
+	B.s8[5]  = (MSK->s8[5]  & 0x80) ? 0 : A->s8[(MSK->s8[5]  & 0xf)];
+	B.s8[6]  = (MSK->s8[6]  & 0x80) ? 0 : A->s8[(MSK->s8[6]  & 0xf)];
+	B.s8[7]  = (MSK->s8[7]  & 0x80) ? 0 : A->s8[(MSK->s8[7]  & 0xf)];
+	B.s8[8]  = (MSK->s8[8]  & 0x80) ? 0 : A->s8[(MSK->s8[8]  & 0xf)];
+	B.s8[9]  = (MSK->s8[9]  & 0x80) ? 0 : A->s8[(MSK->s8[9]  & 0xf)];
+	B.s8[10] = (MSK->s8[10] & 0x80) ? 0 : A->s8[(MSK->s8[10] & 0xf)];
+	B.s8[11] = (MSK->s8[11] & 0x80) ? 0 : A->s8[(MSK->s8[11] & 0xf)];
+	B.s8[12] = (MSK->s8[12] & 0x80) ? 0 : A->s8[(MSK->s8[12] & 0xf)];
+	B.s8[13] = (MSK->s8[13] & 0x80) ? 0 : A->s8[(MSK->s8[13] & 0xf)];
+	B.s8[14] = (MSK->s8[14] & 0x80) ? 0 : A->s8[(MSK->s8[14] & 0xf)];
+	B.s8[15] = (MSK->s8[15] & 0x80) ? 0 : A->s8[(MSK->s8[15] & 0xf)];
+
+	return B;
+}
+
+static void ssp_alignr_epi8(ssp_m128 *ret, ssp_m128 *a, ssp_m128 *b,
+			     const unsigned int ralign)
+{
+	u8 tmp[32];
+	int i, j;
+
+	if (ralign == 0) {
+		*ret = *b;
+		return;
+	}
+
+	ret->u64[1] = ret->u64[0] = 0;
+
+	if (ralign >= 32)
+		return;
+
+	*((ssp_m128 *)(&tmp[0])) = *b;
+	*((ssp_m128 *)(&tmp[16])) = *a;
+
+	for (i = 15 + ralign, j = 15; i >= ralign; i--, j--)
+		ret->u8[j] = (i < 32) ? tmp[i] : 0;
+}
+
+#define OPCODE_SIZE 6
+
+dotraplinkage void do_invalid_op(struct pt_regs *regs, long error_code)
+{
+	siginfo_t info;
+	enum ctx_state prev_state;
+	int handled = 0;
+	union {
+		unsigned char byte[OPCODE_SIZE];
+	} opcode;
+
+	info.si_signo = SIGILL;
+	info.si_errno = 0;
+	info.si_code = ILL_ILLOPN;
+	info.si_addr = (void __user *)regs->ip;
+
+	prev_state = exception_enter();
+
+	if (copy_from_user((void *)&opcode.byte[0],
+		(const void __user *)regs->ip, OPCODE_SIZE)) {
+		pr_info("No user code available.");
+	}
+
+	if (opcode.byte[0] == 0x66) {
+		int i;
+		for (i = 1; i < OPCODE_SIZE; i++)
+			opcode.byte[i-1] = opcode.byte[i];
+		regs->ip++;
+	}
+
+	if (opcode.byte[0] == 0x0f) {
+		if (opcode.byte[1] == 0x38) {
+			switch (opcode.byte[2]) {
+			case 0x00:
+				if (opcode.byte[3] == 0xc1) {
+					ssp_m128 ret;
+					ssp_m128 mask;
+					asm volatile("movdqa %%xmm0, %0" : "=m"(ret));
+					asm volatile("movdqa %%xmm1, %0" : "=m"(mask));
+					ret = ssp_shuffle_epi8(&ret, &mask);
+					asm volatile("movdqa %0, %%xmm0" : : "m"(ret));
+					regs->ip += 4;
+					handled = 1;
+				}
+				break;
+			case 0x1c:
+				if (opcode.byte[3] == 0xc8) {
+					ssp_m128 ret;
+					asm volatile("movdqa %%xmm0, %0" : "=m" (ret));
+					ssp_abs_epi8(&ret);
+					asm volatile("movdqa %0, %%xmm1" : : "m" (ret));
+					regs->ip += 4;
+					handled = 1;
+				}
+				break;
+			case 0x1d:
+				if (opcode.byte[3] == 0xc8) {
+					ssp_m128 ret;
+					asm volatile("movdqa %%xmm0, %0" : "=m" (ret));
+					ssp_abs_epi16(&ret);
+					asm volatile("movdqa %0, %%xmm1" : : "m" (ret));
+					regs->ip += 4;
+					handled = 1;
+				}
+				break;
+			case 0x1e:
+				if (opcode.byte[3] == 0xc8) {
+					ssp_m128 ret;
+					asm volatile("movdqa %%xmm0, %0" : "=m" (ret));
+					ssp_abs_epi32(&ret);
+					asm volatile("movdqa %0, %%xmm1" : : "m" (ret));
+					regs->ip += 4;
+					handled = 1;
+				}
+				break;
+			}
+		} else if ((opcode.byte[1] == 0x3a) && (opcode.byte[2] == 0x0f)) {
+			ssp_m128 ret;
+			ssp_m128 a;
+			ssp_m128 b;
+			int ralign;
+
+			ralign = opcode.byte[4];
+
+			handled = 1;
+
+			switch (opcode.byte[3]) {
+			case 0xd1:
+				asm volatile("movdqa %%xmm2, %0" : "=m" (a));
+				asm volatile("movdqa %%xmm1, %0" : "=m" (b));
+				break;
+			case 0xec:
+				asm volatile("movdqa %%xmm5, %0" : "=m" (a));
+				asm volatile("movdqa %%xmm4, %0" : "=m" (b));
+				break;
+			case 0xe3:
+				asm volatile("movdqa %%xmm4, %0" : "=m" (a));
+				asm volatile("movdqa %%xmm3, %0" : "=m" (b));
+				break;
+			case 0xda:
+				asm volatile("movdqa %%xmm3, %0" : "=m" (a));
+				asm volatile("movdqa %%xmm2, %0" : "=m" (b));
+				break;
+			case 0xf1:
+				asm volatile("movdqa %%xmm6, %0" : "=m" (a));
+				asm volatile("movdqa %%xmm1, %0" : "=m" (b));
+				break;
+			case 0xd4:
+				asm volatile("movdqa %%xmm2, %0" : "=m" (a));
+				asm volatile("movdqa %%xmm4, %0" : "=m" (b));
+				break;
+			default:
+				handled = 0;
+				break;
+			}
+
+			ssp_alignr_epi8(&ret, &a, &b, ralign);
+
+			switch (opcode.byte[3]) {
+			case 0xd1:
+			case 0xd4:
+				asm volatile("movdqa %0, %%xmm2" : : "m" (ret));
+				break;
+			case 0xec:
+				asm volatile("movdqa %0, %%xmm5" : : "m" (ret));
+				break;
+			case 0xe3:
+				asm volatile("movdqa %0, %%xmm4" : : "m" (ret));
+				break;
+			case 0xda:
+				asm volatile("movdqa %0, %%xmm3" : : "m" (ret));
+				break;
+			case 0xf1:
+				asm volatile("movdqa %0, %%xmm6" : : "m" (ret));
+				break;
+			}
+			regs->ip += 5;
+		}
+	}
+
+	if (!handled) {
+		if (notify_die(DIE_TRAP, "invalid opcode", regs, error_code,
+			X86_TRAP_UD, SIGILL) == NOTIFY_STOP) {
+			exception_exit(prev_state);
+			return;
+		}
+		if (regs->flags & X86_EFLAGS_IF)
+			local_irq_enable();
+		do_trap(X86_TRAP_UD, SIGILL, "invalid opcode", regs, error_code, &info);
+	}
+	exception_exit(prev_state);
+}
 
 #ifdef CONFIG_X86_64
 /* Runs on IST stack */
