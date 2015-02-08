@@ -131,6 +131,8 @@ static void early_init_intel(struct cpuinfo_x86 *c)
 	/* Penwell and Cloverview have the TSC which doesn't sleep on S3 */
 	if (c->x86 == 6) {
 		switch (c->x86_model) {
+		case 0x37:	/* ValleyView */
+			set_cpu_cap(c, X86_FEATURE_TSC_RELIABLE);
 		case 0x27:	/* Penwell */
 		case 0x35:	/* Cloverview */
 		case 0x4a:	/* Merrifield */
