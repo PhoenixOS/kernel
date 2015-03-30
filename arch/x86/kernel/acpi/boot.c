@@ -425,8 +425,12 @@ acpi_parse_ioapic(struct acpi_subtable_header * header, const unsigned long end)
 
 	acpi_table_print_madt_entry(header);
 
-	/* Statically assign IRQ numbers for IOAPICs hosting legacy IRQs */
-	if (ioapic->global_irq_base < nr_legacy_irqs())
+	/*
+	 * Statically assign IRQ numbers for IOAPICs hosting legacy IRQs,
+	 * Or for the platform in Hardware-reduced ACPI model
+	 */
+	if (ioapic->global_irq_base < nr_legacy_irqs() ||
+		acpi_gbl_reduced_hardware)
 		cfg.type = IOAPIC_DOMAIN_LEGACY;
 
 	mp_register_ioapic(ioapic->id, ioapic->address, ioapic->global_irq_base,
