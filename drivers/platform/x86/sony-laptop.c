@@ -3239,6 +3239,8 @@ static int sony_nc_tablet_mode_update(void) {
 	input_report_switch(key_dev, SW_TABLET_MODE, tablet_ctl->mode == tablet_mode);
 	input_sync(key_dev);
 
+	sysfs_notify(&sony_pf_device->dev.kobj, NULL, "tablet");
+
 	return tablet_ctl->mode;
 }
 
