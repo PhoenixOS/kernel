@@ -684,6 +684,37 @@ void __ext4_warning_inode(const struct inode *inode, const char *function,
 	va_end(args);
 }
 
+void __ext4_corrupted_block_group(struct super_block *sb, ext4_group_t group,
+				  unsigned int flags, const char *function,
+				  unsigned int line)
+{
+	struct ext4_sb_info *sbi = EXT4_SB(sb);
+	struct ext4_group_info *grp = ext4_get_group_info(sb, group);
+	struct ext4_group_desc *gdp = ext4_get_group_desc(sb, group, NULL);
+
+	if (flags & EXT4_GROUP_INFO_BBITMAP_CORRUPT &&
+	    !EXT4_MB_GRP_BBITMAP_CORRUPT(grp)) {
+		percpu_counter_sub(&sbi->s_freeclusters_counter,
+					grp->bb_free);
+		set_bit(EXT4_GROUP_INFO_BBITMAP_CORRUPT_BIT,
+			&grp->bb_state);
+	}
+
+	if (flags & EXT4_GROUP_INFO_IBITMAP_CORRUPT &&
+	    !EXT4_MB_GRP_IBITMAP_CORRUPT(grp)) {
+		if (gdp) {
+			int count;
+
+			count = ext4_free_inodes_count(sb, gdp);
+			percpu_counter_sub(&sbi->s_freeinodes_counter,
+					   count);
+		}
+		set_bit(EXT4_GROUP_INFO_IBITMAP_CORRUPT_BIT,
+			&grp->bb_state);
+	}
+	save_error_info(sb, function, line);
+}
+
 void __ext4_grp_locked_error(const char *function, unsigned int line,
 			     struct super_block *sb, ext4_group_t grp,
 			     unsigned long ino, ext4_fsblk_t block,

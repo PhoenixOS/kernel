@@ -96,6 +96,18 @@ typedef __u32 ext4_lblk_t;
 /* data type for block group number */
 typedef unsigned int ext4_group_t;
 
+void __ext4_corrupted_block_group(struct super_block *sb,
+				  ext4_group_t group, unsigned int flags,
+				  const char *function, unsigned int line);
+
+#define ext4_corrupted_block_group(sb, group, flags, fmt, ...)		\
+	do {								\
+		__ext4_warning(sb, __func__, __LINE__, fmt,		\
+				##__VA_ARGS__);				\
+		__ext4_corrupted_block_group(sb, group, flags,		\
+					__func__, __LINE__);		\
+	} while (0)
+
 enum SHIFT_DIRECTION {
 	SHIFT_LEFT = 0,
 	SHIFT_RIGHT,
@@ -2897,7 +2909,11 @@ struct ext4_group_info {
 #define EXT4_GROUP_INFO_NEED_INIT_BIT		0
 #define EXT4_GROUP_INFO_WAS_TRIMMED_BIT		1
 #define EXT4_GROUP_INFO_BBITMAP_CORRUPT_BIT	2
+#define EXT4_GROUP_INFO_BBITMAP_CORRUPT		\
+	(1 << EXT4_GROUP_INFO_BBITMAP_CORRUPT_BIT)
 #define EXT4_GROUP_INFO_IBITMAP_CORRUPT_BIT	3
+#define EXT4_GROUP_INFO_IBITMAP_CORRUPT		\
+	(1 << EXT4_GROUP_INFO_IBITMAP_CORRUPT_BIT)
 
 #define EXT4_MB_GRP_NEED_INIT(grp)	\
 	(test_bit(EXT4_GROUP_INFO_NEED_INIT_BIT, &((grp)->bb_state)))
