@@ -64,4 +64,15 @@ static inline unsigned long arizona_of_get_type(struct device *dev)
 }
 #endif
 
+#ifdef CONFIG_ACPI
+#include <linux/acpi.h>
+
+unsigned long arizona_acpi_get_type(struct device *dev);
+
+extern const struct acpi_gpio_params reset_gpios;
+extern const struct acpi_gpio_params ldoena_gpios;
+
+extern const struct acpi_gpio_mapping arizona_acpi_gpios[];
+#endif
+
 #endif
