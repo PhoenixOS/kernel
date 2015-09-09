@@ -11,9 +11,11 @@
  */
 
 #include <linux/clk.h>
+#include <linux/acpi.h>
 #include <linux/delay.h>
 #include <linux/err.h>
 #include <linux/gpio.h>
+#include <linux/gpio/consumer.h>
 #include <linux/interrupt.h>
 #include <linux/mfd/core.h>
 #include <linux/module.h>
@@ -791,6 +793,29 @@ const struct dev_pm_ops arizona_pm_ops = {
 };
 EXPORT_SYMBOL_GPL(arizona_pm_ops);
 
+#ifdef CONFIG_ACPI
+static const struct acpi_device_id arizona_acpi_match[] = {
+	{
+		.id = "WM510205",
+		.driver_data = WM5102,
+	},
+	{},
+};
+MODULE_DEVICE_TABLE(acpi, arizona_acpi_match);
+
+unsigned long arizona_acpi_get_type(struct device *dev)
+{
+	const struct acpi_device_id *id = acpi_match_device(arizona_acpi_match, dev);
+
+	if (id)
+		return (unsigned long)id->driver_data;
+	else
+		return 0;
+}
+EXPORT_SYMBOL_GPL(arizona_acpi_get_type);
+
+#endif
+
 #ifdef CONFIG_OF
 unsigned long arizona_of_get_type(struct device *dev)
 {
@@ -1035,6 +1060,7 @@ int arizona_dev_init(struct arizona *arizona)
 	const char * const mclk_name[] = { "mclk1", "mclk2" };
 	struct device *dev = arizona->dev;
 	const char *type_name = NULL;
+	struct gpio_desc *desc;
 	unsigned int reg, val, mask;
 	int (*apply_patch)(struct arizona *) = NULL;
 	const struct mfd_cell *subdevs = NULL;
@@ -1061,6 +1087,9 @@ int arizona_dev_init(struct arizona *arizona)
 			arizona->mclk[i] = NULL;
 		}
 	}
+
+	arizona->pdata.ldoena = 405;
+	arizona->pdata.reset = 342;
 
 	regcache_cache_only(arizona->regmap, true);
 
@@ -1122,11 +1151,40 @@ int arizona_dev_init(struct arizona *arizona)
 		goto err_early;
 	}
 
+#ifdef CONFIG_ACPI
+	arizona->pdata.irq_flags = IRQF_TRIGGER_RISING|IRQF_TRIGGER_FALLING;
+
+	/* get the ACPI GpioInt ressource for this device */
+	if (ACPI_COMPANION(dev))
+		arizona->pdata.irq_gpio = acpi_dev_gpio_irq_get(ACPI_COMPANION(dev),
+								0);
+	else {
+		/* ACPI _CRS value for WM510205:
+		 * arizona->pdata.irq_gpio = 0x04 ;
+		 */
+		arizona->pdata.irq_gpio = 146 ;
+	}
+
+	dev_err(dev, "(ACPI) using irq_gpio GPIO = %i\n",arizona->pdata.irq_gpio);
+
+#endif
+
 	if (arizona->pdata.reset) {
 		/* Start out with /RESET low to put the chip into reset */
 		ret = devm_gpio_request_one(arizona->dev, arizona->pdata.reset,
 					    GPIOF_DIR_OUT | GPIOF_INIT_LOW,
 					    "arizona /RESET");
+		if (ret != 0) {
+			/* try to get the reset GPIO pin, otherwise let it fail */
+			ret = 0;
+			desc = devm_gpiod_get(dev, "reset",
+					GPIOF_DIR_OUT | GPIOF_INIT_LOW);
+			if (!IS_ERR(desc))
+				arizona->pdata.reset = desc_to_gpio(desc);
+			else
+				ret = -1;
+		}
+
 		if (ret != 0) {
 			dev_err(dev, "Failed to request /RESET: %d\n", ret);
 			goto err_dcvdd;
