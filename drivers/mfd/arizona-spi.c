@@ -23,18 +23,46 @@
 
 #include "arizona.h"
 
+#ifdef CONFIG_ACPI
+#include <linux/acpi.h>
+
+const struct acpi_gpio_params reset_gpios = {1, 0, false};
+const struct acpi_gpio_params ldoena_gpios = {2, 0, false};
+
+const struct acpi_gpio_mapping arizona_acpi_gpios[] = {
+	{ "reset-gpios", &reset_gpios, 1,},
+	{ "ldoena_gpios", &ldoena_gpios, 1},
+	{ },
+};
+#endif
+
 static int arizona_spi_probe(struct spi_device *spi)
 {
-	const struct spi_device_id *id = spi_get_device_id(spi);
+	const struct spi_device_id *id;
 	struct arizona *arizona;
 	const struct regmap_config *regmap_config = NULL;
 	unsigned long type;
 	int ret;
+#ifdef CONFIG_ACPI
+	struct acpi_device *adev;
+	acpi_handle handle;
+#endif
 
 	if (spi->dev.of_node)
 		type = arizona_of_get_type(&spi->dev);
-	else
-		type = id->driver_data;
+	else {
+		if (( type = arizona_acpi_get_type(&spi->dev))) {
+			if (ACPI_COMPANION(&spi->dev))
+				spi->irq = acpi_dev_gpio_irq_get(ACPI_COMPANION(&spi->dev), 0);
+		} else {
+			id = spi_get_device_id(spi);
+			if (!id || !id->driver_data)
+				return -ENODEV;
+
+			type = id->driver_data;
+			dev_err(&spi->dev, "matched spi\n");
+		}
+	}
 
 	switch (type) {
 	case WM5102:
@@ -73,7 +101,16 @@ static int arizona_spi_probe(struct spi_device *spi)
 			ret);
 		return ret;
 	}
+#ifdef CONFIG_ACPI
+	handle = ACPI_HANDLE(&spi->dev);
 
+	if (!handle || acpi_bus_get_device(handle,&adev)) {
+		dev_err(&spi->dev, "unable to get ACPI handle\n");
+		return -ENODEV;
+	}
+
+	ret = acpi_dev_add_driver_gpios(ACPI_COMPANION(&spi->dev), arizona_acpi_gpios);
+#endif
 	arizona->type = type;
 	arizona->dev = &spi->dev;
 	arizona->irq = spi->irq;
@@ -100,11 +137,21 @@ static const struct spi_device_id arizona_spi_ids[] = {
 };
 MODULE_DEVICE_TABLE(spi, arizona_spi_ids);
 
+static const struct acpi_device_id arizona_acpi_match[] = {
+	{
+		.id = "WM510205",
+		.driver_data = WM5102,
+	},
+	{ },
+};
+MODULE_DEVICE_TABLE(acpi, arizona_acpi_match);
+
 static struct spi_driver arizona_spi_driver = {
 	.driver = {
 		.name	= "arizona",
 		.pm	= &arizona_pm_ops,
 		.of_match_table	= of_match_ptr(arizona_of_match),
+		.acpi_match_table = ACPI_PTR(arizona_acpi_match),
 	},
 	.probe		= arizona_spi_probe,
 	.remove		= arizona_spi_remove,
