@@ -1,0 +1,6 @@
+config GSLX680
+	tristate "GSLx680 I2C Touchscreen Interface"
+	help
+	  GSLx680 needs a firmware to work in /lib/firmware/silead_ts.fw
+	  GSLx680 needs to be loaded manually or during boot
+	  defined gslx680_ts_acpi in /etc/modules or /etc/init.sh
