@@ -105,6 +105,7 @@ unlock_and_exit:
 	acpi_os_release_lock(acpi_gbl_gpe_lock, flags);
 	return_ACPI_STATUS(status);
 }
+ACPI_EXPORT_SYMBOL(acpi_ev_walk_gpe_list)
 
 /*******************************************************************************
  *

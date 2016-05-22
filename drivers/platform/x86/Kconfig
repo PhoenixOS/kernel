@@ -1021,6 +1021,12 @@ config SURFACE_PRO3_BUTTON
 	---help---
 	  This driver handles the power/home/volume buttons on the Microsoft Surface Pro 3/4 tablet.
 
+config DV11P_TABLET
+	tristate "Dell Venue 11 Pro Tablet support"
+	depends on ACPI
+	---help---
+	  This driver provides power button support and docking events for the Dell Venue 11 Pro tablet.
+
 config INTEL_PUNIT_IPC
 	tristate "Intel P-Unit IPC Driver"
 	---help---
