@@ -78,6 +78,8 @@ gate_desc debug_idt_table[NR_VECTORS] __page_aligned_bss;
 #include <asm/proto.h>
 #endif
 
+#include "SSEPlus_REF.h"
+
 /* Must be page-aligned because the real IDT is used in a fixmap. */
 gate_desc idt_table[NR_VECTORS] __page_aligned_bss;
 
@@ -306,105 +308,14 @@ __visible void __noreturn handle_stack_overflow(const char *message,
 }
 #endif
 
-typedef union {
-	u64 u64[2];
-	s64 s64[2];
-	u32 u32[4];
-	s32 s32[4];
-	u16 u16[8];
-	s16 s16[8];
-	u8 u8[16];
-	s8 s8[16];
-} ssp_m128 __aligned(16);
+#define OPCODE_SIZE 12
+#define DEBUG_INST_EMULATION 0
 
-static void ssp_abs_epi8(ssp_m128 *A)
-{
-	A->s8[0]  = (A->s8[0] < 0) ? -A->s8[0]  : A->s8[0];
-	A->s8[1]  = (A->s8[1] < 0) ? -A->s8[1]  : A->s8[1];
-	A->s8[2]  = (A->s8[2] < 0) ? -A->s8[2]  : A->s8[2];
-	A->s8[3]  = (A->s8[3] < 0) ? -A->s8[3]  : A->s8[3];
-	A->s8[4]  = (A->s8[4] < 0) ? -A->s8[4]  : A->s8[4];
-	A->s8[5]  = (A->s8[5] < 0) ? -A->s8[5]  : A->s8[5];
-	A->s8[6]  = (A->s8[6] < 0) ? -A->s8[6]  : A->s8[6];
-	A->s8[7]  = (A->s8[7] < 0) ? -A->s8[7]  : A->s8[7];
-	A->s8[8]  = (A->s8[8] < 0) ? -A->s8[8]  : A->s8[8];
-	A->s8[9]  = (A->s8[9] < 0) ? -A->s8[9]  : A->s8[9];
-	A->s8[10] = (A->s8[10] < 0) ? -A->s8[10] : A->s8[10];
-	A->s8[11] = (A->s8[11] < 0) ? -A->s8[11] : A->s8[11];
-	A->s8[12] = (A->s8[12] < 0) ? -A->s8[12] : A->s8[12];
-	A->s8[13] = (A->s8[13] < 0) ? -A->s8[13] : A->s8[13];
-	A->s8[14] = (A->s8[14] < 0) ? -A->s8[14] : A->s8[14];
-	A->s8[15] = (A->s8[15] < 0) ? -A->s8[15] : A->s8[15];
-}
-
-static void ssp_abs_epi16(ssp_m128 *A)
-{
-	A->s16[0] = (A->s16[0] < 0) ? -A->s16[0]  : A->s16[0];
-	A->s16[1] = (A->s16[1] < 0) ? -A->s16[1]  : A->s16[1];
-	A->s16[2] = (A->s16[2] < 0) ? -A->s16[2]  : A->s16[2];
-	A->s16[3] = (A->s16[3] < 0) ? -A->s16[3]  : A->s16[3];
-	A->s16[4] = (A->s16[4] < 0) ? -A->s16[4]  : A->s16[4];
-	A->s16[5] = (A->s16[5] < 0) ? -A->s16[5]  : A->s16[5];
-	A->s16[6] = (A->s16[6] < 0) ? -A->s16[6]  : A->s16[6];
-	A->s16[7] = (A->s16[7] < 0) ? -A->s16[7]  : A->s16[7];
-}
-
-static void ssp_abs_epi32(ssp_m128 *A)
-{
-	A->s32[0] = (A->s32[0] < 0) ? -A->s32[0]  : A->s32[0];
-	A->s32[1] = (A->s32[1] < 0) ? -A->s32[1]  : A->s32[1];
-	A->s32[2] = (A->s32[2] < 0) ? -A->s32[2]  : A->s32[2];
-	A->s32[3] = (A->s32[3] < 0) ? -A->s32[3]  : A->s32[3];
-}
-
-static ssp_m128 ssp_shuffle_epi8(ssp_m128 *A, ssp_m128 *MSK)
-{
-	ssp_m128 B;
-
-	B.s8[0]  = (MSK->s8[0]  & 0x80) ? 0 : A->s8[(MSK->s8[0]  & 0xf)];
-	B.s8[1]  = (MSK->s8[1]  & 0x80) ? 0 : A->s8[(MSK->s8[1]  & 0xf)];
-	B.s8[2]  = (MSK->s8[2]  & 0x80) ? 0 : A->s8[(MSK->s8[2]  & 0xf)];
-	B.s8[3]  = (MSK->s8[3]  & 0x80) ? 0 : A->s8[(MSK->s8[3]  & 0xf)];
-	B.s8[4]  = (MSK->s8[4]  & 0x80) ? 0 : A->s8[(MSK->s8[4]  & 0xf)];
-	B.s8[5]  = (MSK->s8[5]  & 0x80) ? 0 : A->s8[(MSK->s8[5]  & 0xf)];
-	B.s8[6]  = (MSK->s8[6]  & 0x80) ? 0 : A->s8[(MSK->s8[6]  & 0xf)];
-	B.s8[7]  = (MSK->s8[7]  & 0x80) ? 0 : A->s8[(MSK->s8[7]  & 0xf)];
-	B.s8[8]  = (MSK->s8[8]  & 0x80) ? 0 : A->s8[(MSK->s8[8]  & 0xf)];
-	B.s8[9]  = (MSK->s8[9]  & 0x80) ? 0 : A->s8[(MSK->s8[9]  & 0xf)];
-	B.s8[10] = (MSK->s8[10] & 0x80) ? 0 : A->s8[(MSK->s8[10] & 0xf)];
-	B.s8[11] = (MSK->s8[11] & 0x80) ? 0 : A->s8[(MSK->s8[11] & 0xf)];
-	B.s8[12] = (MSK->s8[12] & 0x80) ? 0 : A->s8[(MSK->s8[12] & 0xf)];
-	B.s8[13] = (MSK->s8[13] & 0x80) ? 0 : A->s8[(MSK->s8[13] & 0xf)];
-	B.s8[14] = (MSK->s8[14] & 0x80) ? 0 : A->s8[(MSK->s8[14] & 0xf)];
-	B.s8[15] = (MSK->s8[15] & 0x80) ? 0 : A->s8[(MSK->s8[15] & 0xf)];
-
-	return B;
-}
-
-static void ssp_alignr_epi8(ssp_m128 *ret, ssp_m128 *a, ssp_m128 *b,
-			     const unsigned int ralign)
-{
-	u8 tmp[32];
-	int i, j;
-
-	if (ralign == 0) {
-		*ret = *b;
-		return;
-	}
-
-	ret->u64[1] = ret->u64[0] = 0;
-
-	if (ralign >= 32)
-		return;
-
-	*((ssp_m128 *)(&tmp[0])) = *b;
-	*((ssp_m128 *)(&tmp[16])) = *a;
-
-	for (i = 15 + ralign, j = 15; i >= ralign; i--, j--)
-		ret->u8[j] = (i < 32) ? tmp[i] : 0;
-}
-
-#define OPCODE_SIZE 6
+#if DEBUG_INST_EMULATION
+#define INSTR_NAME(x) __instr_name = x
+#else
+#define INSTR_NAME(x)
+#endif
 
 dotraplinkage void do_invalid_op(struct pt_regs *regs, long error_code)
 {
@@ -414,6 +325,10 @@ dotraplinkage void do_invalid_op(struct pt_regs *regs, long error_code)
 	union {
 		unsigned char byte[OPCODE_SIZE];
 	} opcode;
+	int prefix66 = 0, prefixREX = 0;
+#if DEBUG_INST_EMULATION
+	const char* __instr_name = NULL;
+#endif
 
 	info.si_signo = SIGILL;
 	info.si_errno = 0;
@@ -427,8 +342,18 @@ dotraplinkage void do_invalid_op(struct pt_regs *regs, long error_code)
 		pr_info("No user code available.");
 	}
 
-	if (opcode.byte[0] == 0x66) {
+	// 0xf3 prefix is used by popcnt
+	if (opcode.byte[0] == 0x66 || opcode.byte[0] == 0xf3) {
 		int i;
+		prefix66 = opcode.byte[0] == 0x66;
+		for (i = 1; i < OPCODE_SIZE; i++)
+			opcode.byte[i-1] = opcode.byte[i];
+		regs->ip++;
+	}
+
+	while ((opcode.byte[0] & 0xf0) == 0x40) {
+		int i;
+		prefixREX = opcode.byte[0];
 		for (i = 1; i < OPCODE_SIZE; i++)
 			opcode.byte[i-1] = opcode.byte[i];
 		regs->ip++;
@@ -436,113 +361,565 @@ dotraplinkage void do_invalid_op(struct pt_regs *regs, long error_code)
 
 	if (opcode.byte[0] == 0x0f) {
 		if (opcode.byte[1] == 0x38) {
-			switch (opcode.byte[2]) {
-			case 0x00:
-				if (opcode.byte[3] == 0xc1) {
-					ssp_m128 ret;
-					ssp_m128 mask;
-					asm volatile("movdqa %%xmm0, %0" : "=m"(ret));
-					asm volatile("movdqa %%xmm1, %0" : "=m"(mask));
-					ret = ssp_shuffle_epi8(&ret, &mask);
-					asm volatile("movdqa %0, %%xmm0" : : "m"(ret));
-					regs->ip += 4;
+			ssp_m128 ret, src;
+			unsigned int dstIndex = (opcode.byte[3]>>3) & 0x7;
+			int op_len;
+
+			if (opcode.byte[2] == 0x2a) {
+				unsigned long memAddr = 0;
+				int regIndex = (opcode.byte[3]>>3) & 0x7;
+				int op_len = 4 + decodeMemAddress(opcode.byte[3], regs, prefixREX, &opcode.byte[4], &memAddr);
+				u8 data[sizeof(ssp_m128)];
+
+				INSTR_NAME("movntdqa");
+
+				if (memAddr && !copy_from_user((void *)data, (const void __user *)memAddr, sizeof(ssp_m128))) {
+					ssp_m128 ret = ssp_stream_load_si128((ssp_m128*)data);
+					setXMMRegister(regIndex, testREX(prefixREX, REX_R), &ret);
 					handled = 1;
+					regs->ip += op_len;
 				}
-				break;
-			case 0x1c:
-				if (opcode.byte[3] == 0xc8) {
-					ssp_m128 ret;
-					asm volatile("movdqa %%xmm0, %0" : "=m" (ret));
+			}
+			else if (opcode.byte[2] == 0xf0 || opcode.byte[2] == 0xf1) {
+				unsigned long memAddr = 0;
+				int regIndex = (opcode.byte[3]>>3) & 0x7;
+				int op_bytes = testREX(prefixREX, REX_W) ? 8 : (prefix66 ? 2 : 4);
+				int op_len = 4 + decodeMemAddress(opcode.byte[3], regs, prefixREX, &opcode.byte[4], &memAddr);
+				u8 data[8];
+
+				INSTR_NAME("movbe");
+
+				if (memAddr && opcode.byte[2] == 0xf0) {
+					// dst reg
+					if (!copy_from_user((void *)data, (const void __user *)memAddr, op_bytes)) {
+						unsigned long* regValue = getRegisterPtr(regIndex, regs, testREX(prefixREX, REX_R));
+						switch (op_bytes) {
+						case 2:
+							*regValue &= ~0xffffUL;
+							*regValue |= swab16(*(u16*)data);
+							break;
+						case 4:
+							*regValue &= ~0xffffffffUL;
+							*regValue |= swab32(*(u32*)data);
+							break;
+						case 8:
+							*regValue = swab64(*(u64*)data);
+							break;
+						}
+						handled = 1;
+						regs->ip += op_len;
+					}
+					else {
+						pr_info("movbe copy_from_user failed. op_bytes=%d, op_len=%d, memAddr=%p\n",
+								op_bytes, op_len, (void*)memAddr);
+					}
+				}
+				else if (memAddr) {
+					// dst mem
+					switch (op_bytes) {
+					case 2:
+						*(u16*)data = swab16(*(u16*)getRegisterPtr(regIndex, regs, testREX(prefixREX, REX_R)));
+						break;
+					case 4:
+						*(u32*)data = swab32(*(u32*)getRegisterPtr(regIndex, regs, testREX(prefixREX, REX_R)));
+						break;
+					case 8:
+						*(u64*)data = swab64(*(u64*)getRegisterPtr(regIndex, regs, testREX(prefixREX, REX_R)));
+						break;
+					}
+					if (!copy_to_user((void __user *)memAddr, (void *)data, op_bytes)) {
+						handled = 1;
+						regs->ip += op_len;
+					}
+					else {
+						pr_info("movbe copy_to_user failed. op_bytes=%d, op_len=%d, memAddr=%p\n",
+								op_bytes, op_len, (void*)memAddr);
+					}
+				}
+			}
+			else if ((op_len = getOp2XMMValue(opcode.byte[3], regs, prefixREX, &opcode.byte[4], &src)) != -1) {
+				op_len += 4;
+				ret = getXMMRegister(dstIndex, testREX(prefixREX, REX_R));
+
+				switch (opcode.byte[2]) {
+				case 0x00:
+					INSTR_NAME("pshufb");
+					ret = ssp_shuffle_epi8(&ret, &src);
+					handled = 1;
+					break;
+				case 0x01:
+					INSTR_NAME("phaddw");
+					ret = ssp_hadd_epi16(&ret, &src);
+					handled = 1;
+					break;
+				case 0x02:
+					INSTR_NAME("phaddd");
+					ret = ssp_hadd_epi32(&ret, &src);
+					handled = 1;
+					break;
+				case 0x03:
+					INSTR_NAME("phaddsw");
+					ret = ssp_hadds_epi16(&ret, &src);
+					handled = 1;
+					break;
+				case 0x04:
+					INSTR_NAME("pmaddubsw");
+					ret = ssp_maddubs_epi16(&ret, &src);
+					handled = 1;
+					break;
+				case 0x05:
+					INSTR_NAME("phsubw");
+					ret = ssp_hsub_epi16(&ret, &src);
+					handled = 1;
+					break;
+				case 0x06:
+					INSTR_NAME("phsubd");
+					ret = ssp_hsub_epi32(&ret, &src);
+					handled = 1;
+					break;
+				case 0x07:
+					INSTR_NAME("phsubsw");
+					ret = ssp_hsubs_epi16(&ret, &src);
+					handled = 1;
+					break;
+				case 0x08:
+					INSTR_NAME("psignb");
+					ret = ssp_sign_epi8(&ret, &src);
+					handled = 1;
+					break;
+				case 0x09:
+					INSTR_NAME("psignw");
+					ret = ssp_sign_epi16(&ret, &src);
+					handled = 1;
+					break;
+				case 0x0a:
+					INSTR_NAME("psignd");
+					ret = ssp_sign_epi32(&ret, &src);
+					handled = 1;
+					break;
+				case 0x0b:
+					INSTR_NAME("pmulhrsw");
+					ret = ssp_mulhrs_epi16(&ret, &src);
+					handled = 1;
+					break;
+				case 0x10:
+				{
+					ssp_m128 op3 = getXMMRegister(0, 0);
+					INSTR_NAME("pblendvb");
+					ret = ssp_blendv_epi8(&ret, &src, &op3);
+					handled = 1;
+					break;
+				}
+				case 0x14:
+				{
+					ssp_m128 op3 = getXMMRegister(0, 0);
+					INSTR_NAME("blendvps");
+					ret = ssp_blendv_ps(&ret, &src, &op3);
+					handled = 1;
+					break;
+				}
+				case 0x15:
+				{
+					ssp_m128 op3 = getXMMRegister(0, 0);
+					INSTR_NAME("blendvpd");
+					ret = ssp_blendv_pd(&ret, &src, &op3);
+					handled = 1;
+					break;
+				}
+				case 0x17:
+				{
+					int cf = ssp_testc_si128(&ret, &src);
+					int zf = ssp_testz_si128(&ret, &src);
+					INSTR_NAME("ptest");
+					if (zf) regs->flags |= 1<<6;
+					if (cf) regs->flags |= 1;
+					handled = 1;
+					break;
+				}
+				case 0x1c:
+					INSTR_NAME("pabsb");
+					ret = src;
 					ssp_abs_epi8(&ret);
-					asm volatile("movdqa %0, %%xmm1" : : "m" (ret));
-					regs->ip += 4;
 					handled = 1;
-				}
-				break;
-			case 0x1d:
-				if (opcode.byte[3] == 0xc8) {
-					ssp_m128 ret;
-					asm volatile("movdqa %%xmm0, %0" : "=m" (ret));
+					break;
+				case 0x1d:
+					INSTR_NAME("pabsw");
+					ret = src;
 					ssp_abs_epi16(&ret);
-					asm volatile("movdqa %0, %%xmm1" : : "m" (ret));
-					regs->ip += 4;
 					handled = 1;
-				}
-				break;
-			case 0x1e:
-				if (opcode.byte[3] == 0xc8) {
-					ssp_m128 ret;
-					asm volatile("movdqa %%xmm0, %0" : "=m" (ret));
+					break;
+				case 0x1e:
+					INSTR_NAME("pabsd");
+					ret = src;
 					ssp_abs_epi32(&ret);
-					asm volatile("movdqa %0, %%xmm1" : : "m" (ret));
-					regs->ip += 4;
 					handled = 1;
+					break;
+				case 0x20:
+					INSTR_NAME("pmovsxbw");
+					ret = ssp_cvtepi8_epi16(&src);
+					handled = 1;
+					break;
+				case 0x21:
+					INSTR_NAME("pmovsxbd");
+					ret = ssp_cvtepi8_epi32(&src);
+					handled = 1;
+					break;
+				case 0x22:
+					INSTR_NAME("pmovsxbq");
+					ret = ssp_cvtepi8_epi64(&src);
+					handled = 1;
+					break;
+				case 0x23:
+					INSTR_NAME("pmovsxwd");
+					ret = ssp_cvtepi16_epi32(&src);
+					handled = 1;
+					break;
+				case 0x24:
+					INSTR_NAME("pmovsxwq");
+					ret = ssp_cvtepi16_epi64(&src);
+					handled = 1;
+					break;
+				case 0x25:
+					INSTR_NAME("pmovsxdq");
+					ret = ssp_cvtepi32_epi64(&src);
+					handled = 1;
+					break;
+				case 0x28:
+					INSTR_NAME("pmuldq");
+					ret = ssp_mul_epi32(&ret, &src);
+					handled = 1;
+					break;
+				case 0x29:
+					INSTR_NAME("pcmpeqq");
+					ret = ssp_cmpeq_epi64(&ret, &src);
+					handled = 1;
+					break;
+				case 0x2b:
+					INSTR_NAME("packusdw");
+					ret = ssp_packus_epi32(&ret, &src);
+					handled = 1;
+					break;
+				case 0x30:
+					INSTR_NAME("pmovzxbw");
+					ret = ssp_cvtepu8_epi16(&src);
+					handled = 1;
+					break;
+				case 0x31:
+					INSTR_NAME("pmovzxbd");
+					ret = ssp_cvtepu8_epi32(&src);
+					handled = 1;
+					break;
+				case 0x32:
+					INSTR_NAME("pmovzxbq");
+					ret = ssp_cvtepu8_epi64(&src);
+					handled = 1;
+					break;
+				case 0x33:
+					INSTR_NAME("pmovzxwd");
+					ret = ssp_cvtepu16_epi32(&src);
+					handled = 1;
+					break;
+				case 0x34:
+					INSTR_NAME("pmovzxwq");
+					ret = ssp_cvtepu16_epi64(&src);
+					handled = 1;
+					break;
+				case 0x35:
+					INSTR_NAME("pmovzxdq");
+					ret = ssp_cvtepu32_epi64(&src);
+					handled = 1;
+					break;
+				case 0x38:
+					INSTR_NAME("pminsb");
+					ret = ssp_min_epi8(&src, &ret);
+					handled = 1;
+					break;
+				case 0x39:
+					INSTR_NAME("pminsd");
+					ret = ssp_min_epi32(&src, &ret);
+					handled = 1;
+					break;
+				case 0x3a:
+					INSTR_NAME("pminuw");
+					ret = ssp_min_epu16(&src, &ret);
+					handled = 1;
+					break;
+				case 0x3b:
+					INSTR_NAME("pminud");
+					ret = ssp_min_epu32(&src, &ret);
+					handled = 1;
+					break;
+				case 0x3c:
+					INSTR_NAME("pmaxsb");
+					ret = ssp_max_epi8(&src, &ret);
+					handled = 1;
+					break;
+				case 0x3d:
+					INSTR_NAME("pmaxsd");
+					ret = ssp_max_epi32(&src, &ret);
+					handled = 1;
+					break;
+				case 0x3e:
+					INSTR_NAME("pmaxuw");
+					ret = ssp_max_epu16(&src, &ret);
+					handled = 1;
+					break;
+				case 0x3f:
+					INSTR_NAME("pmaxud");
+					ret = ssp_max_epu32(&src, &ret);
+					handled = 1;
+					break;
+				case 0x40:
+					INSTR_NAME("pmulld");
+					ret = ssp_mullo_epi32(&ret, &src);
+					handled = 1;
+					break;
+				case 0x41:
+					INSTR_NAME("phminposuw");
+					ret = ssp_minpos_epu16(&src);
+					handled = 1;
+					break;
 				}
+
+				if (handled) {
+					setXMMRegister(dstIndex, testREX(prefixREX, REX_R), &ret);
+					regs->ip += op_len;
+				}
+			}
+		}
+		else if (opcode.byte[1] == 0x3a) {
+			ssp_m128 a, b, ret;
+			int op_len, immValue;
+
+			unsigned int aIndex = (opcode.byte[3]>>3) & 0x7;;
+			a = getXMMRegister(aIndex, testREX(prefixREX, REX_R));
+
+			// PINSRB family
+			unsigned long memValue;
+			if ((opcode.byte[2] == 0x20 || opcode.byte[2] == 0x22) &&
+				((op_len = getOp2MemValue(opcode.byte[3], regs, prefixREX, &opcode.byte[4], &memValue)) != -1)) {
+				immValue = opcode.byte[4 + op_len];
+				op_len += 5;
+
+				switch (opcode.byte[2]) {
+				case 0x20:
+					INSTR_NAME("pinsrb");
+					ret = ssp_insert_epi8(&a, memValue, immValue);
+					setXMMRegister(aIndex, testREX(prefixREX, REX_R), &ret);
+					handled = 1;
+					break;
+				case 0x22:
+					if (testREX(prefixREX, REX_W)) {
+						INSTR_NAME("pinsrq");
+						ret = ssp_insert_epi64(&a, memValue, immValue);
+					}
+					else {
+						INSTR_NAME("pinsrd");
+						ret = ssp_insert_epi32(&a, memValue, immValue);
+					}
+					setXMMRegister(aIndex, testREX(prefixREX, REX_R), &ret);
+					handled = 1;
+					break;
+				}
+			}
+
+			// EXTRACTPS/PEXTRB family
+			if (!handled && (opcode.byte[2] == 0x14 || opcode.byte[2] == 0x16 || opcode.byte[2] == 0x17)) {
+				s64 extractValue;
+				unsigned long memAddr = 0;
+				int regIndex = 0;
+				int dstLength = 0;
+				if (opcode.byte[3] >= 0xc0) {
+					immValue = opcode.byte[4];
+					op_len = 5;
+					regIndex = opcode.byte[3] & 0x7;
+				}
+				else {
+					op_len = decodeMemAddress(opcode.byte[3], regs, prefixREX, &opcode.byte[4], &memAddr);
+					if (op_len != -1) {
+						immValue = opcode.byte[4 + op_len];
+						op_len += 5;
+					}
+				}
+
+				switch (opcode.byte[2]) {
+				case 0x14:
+					INSTR_NAME("pextrb");
+					if (testREX(prefixREX, REX_W)) {
+						dstLength = 8;
+					}
+					else {
+						dstLength = 1;
+					}
+					extractValue= ssp_extract_epi8(&a, immValue);
+					break;
+				case 0x16:
+					if (testREX(prefixREX, REX_W)) {
+						INSTR_NAME("pextrq");
+						extractValue = ssp_extract_epi64(&a, immValue);
+						dstLength = 8;
+					}
+					else {
+						INSTR_NAME("pextrd");
+						extractValue = ssp_extract_epi32(&a, immValue);
+						dstLength = 4;
+					}
+					break;
+				case 0x17:
+					INSTR_NAME("extractps");
+					extractValue = ssp_extract_ps(&a, immValue);
+					dstLength = 4;
+					break;
+				}
+
+				if (memAddr && dstLength) {
+					handled = !copy_to_user((void __user *)memAddr, &extractValue, dstLength);
+				}
+				else if (dstLength) {
+					unsigned long *regPtr = getRegisterPtr(regIndex, regs, testREX(prefixREX, REX_B));
+					switch (dstLength) {
+					case 1:
+						*regPtr &= ~0xffUL;
+						*regPtr |= extractValue & 0xff;
+						handled = 1;
+						break;
+					case 4:
+						*regPtr &= ~0xffffffffUL;
+						*regPtr |= extractValue & 0xffffffff;
+						handled = 1;
+						break;
+					case 8:
+						*regPtr = extractValue;
+						handled = 1;
+						break;
+					}
+				}
+			}
+
+			if (!handled && (op_len = getOp2XMMValue(opcode.byte[3], regs, prefixREX, &opcode.byte[4], &b)) != -1) {
+				immValue = opcode.byte[4 + op_len];
+				op_len += 5;
+
+				switch (opcode.byte[2]) {
+				case 0x08:
+					INSTR_NAME("roundps");
+					ret = ssp_round_ps(&b, immValue);
+					handled = 1;
+					setXMMRegister(aIndex, testREX(prefixREX, REX_R), &ret);
+					break;
+				case 0x09:
+					INSTR_NAME("roundpd");
+					ret = ssp_round_pd(&b, immValue);
+					handled = 1;
+					setXMMRegister(aIndex, testREX(prefixREX, REX_R), &ret);
+					break;
+				case 0x0a:
+					INSTR_NAME("roundss");
+					ret = ssp_round_ss(&a, &b, immValue);
+					handled = 1;
+					setXMMRegister(aIndex, testREX(prefixREX, REX_R), &ret);
+					break;
+				case 0x0b:
+					INSTR_NAME("roundsd");
+					ret = ssp_round_sd(&a, &b, immValue);
+					handled = 1;
+					setXMMRegister(aIndex, testREX(prefixREX, REX_R), &ret);
+					break;
+				case 0x0c:
+					INSTR_NAME("blendps");
+					ret = ssp_blend_ps(&a, &b, immValue);
+					handled = 1;
+					setXMMRegister(aIndex, testREX(prefixREX, REX_R), &ret);
+					break;
+				case 0x0d:
+					INSTR_NAME("blendpd");
+					ret = ssp_blend_pd(&a, &b, immValue);
+					handled = 1;
+					setXMMRegister(aIndex, testREX(prefixREX, REX_R), &ret);
+					break;
+				case 0x0e:
+					INSTR_NAME("pblendw");
+					ret = ssp_blend_epi16(&a, &b, immValue);
+					handled = 1;
+					setXMMRegister(aIndex, testREX(prefixREX, REX_R), &ret);
+					break;
+				case 0x0f:
+					INSTR_NAME("palignr");
+					ssp_alignr_epi8(&ret, &a, &b, immValue);
+					handled = 1;
+					setXMMRegister(aIndex, testREX(prefixREX, REX_R), &ret);
+					break;
+				case 0x21:
+					INSTR_NAME("insertps");
+					ret = ssp_insert_ps(&a, &b, immValue);
+					handled = 1;
+					setXMMRegister(aIndex, testREX(prefixREX, REX_R), &ret);
+					break;
+				case 0x40:
+					INSTR_NAME("dpps");
+					ret = ssp_dp_ps(&a, &b, immValue);
+					handled = 1;
+					setXMMRegister(aIndex, testREX(prefixREX, REX_R), &ret);
+					break;
+				case 0x41:
+					INSTR_NAME("dppd");
+					ret = ssp_dp_pd(&a, &b, immValue);
+					handled = 1;
+					setXMMRegister(aIndex, testREX(prefixREX, REX_R), &ret);
+					break;
+				case 0x42:
+					INSTR_NAME("mpsadbw");
+					ret = ssp_mpsadbw_epu8(&a, &b, immValue);
+					handled = 1;
+					setXMMRegister(aIndex, testREX(prefixREX, REX_R), &ret);
+					break;
+				}
+			}
+
+			if (handled) {
+				regs->ip += op_len;
+			}
+		}
+		else if (opcode.byte[1] == 0xb8 && opcode.byte[2] >= 0xc0) {
+			// popcnt with memory addressing not supported yet
+			unsigned int srcIndex = opcode.byte[2] & 0x7;
+			unsigned int dstIndex = (opcode.byte[2] >> 3) & 0x7;
+			int op_bytes = testREX(prefixREX, REX_W) ? 8 : (prefix66 ? 2 : 4);
+
+			unsigned long regValue = *getRegisterPtr(srcIndex, regs, testREX(prefixREX, REX_B));
+			unsigned long *dstReg = getRegisterPtr(dstIndex, regs, testREX(prefixREX, REX_R));
+
+			switch (op_bytes) {
+			case 2:
+				INSTR_NAME("popcnt.16");
+				*dstReg &= ~0xffffUL;
+				*dstReg |= ssp_popcnt_16(regValue);
+				break;
+			case 4:
+				INSTR_NAME("popcnt.32");
+				*dstReg &= ~0xffffffffUL;
+				*dstReg |= ssp_popcnt_32(regValue);
+				break;
+			case 8:
+				INSTR_NAME("popcnt.64");
+				*dstReg = ssp_popcnt_64(regValue);
 				break;
 			}
-		} else if ((opcode.byte[1] == 0x3a) && (opcode.byte[2] == 0x0f)) {
-			ssp_m128 ret;
-			ssp_m128 a;
-			ssp_m128 b;
-			int ralign;
-
-			ralign = opcode.byte[4];
 
 			handled = 1;
-
-			switch (opcode.byte[3]) {
-			case 0xd1:
-				asm volatile("movdqa %%xmm2, %0" : "=m" (a));
-				asm volatile("movdqa %%xmm1, %0" : "=m" (b));
-				break;
-			case 0xec:
-				asm volatile("movdqa %%xmm5, %0" : "=m" (a));
-				asm volatile("movdqa %%xmm4, %0" : "=m" (b));
-				break;
-			case 0xe3:
-				asm volatile("movdqa %%xmm4, %0" : "=m" (a));
-				asm volatile("movdqa %%xmm3, %0" : "=m" (b));
-				break;
-			case 0xda:
-				asm volatile("movdqa %%xmm3, %0" : "=m" (a));
-				asm volatile("movdqa %%xmm2, %0" : "=m" (b));
-				break;
-			case 0xf1:
-				asm volatile("movdqa %%xmm6, %0" : "=m" (a));
-				asm volatile("movdqa %%xmm1, %0" : "=m" (b));
-				break;
-			case 0xd4:
-				asm volatile("movdqa %%xmm2, %0" : "=m" (a));
-				asm volatile("movdqa %%xmm4, %0" : "=m" (b));
-				break;
-			default:
-				handled = 0;
-				break;
-			}
-
-			ssp_alignr_epi8(&ret, &a, &b, ralign);
-
-			switch (opcode.byte[3]) {
-			case 0xd1:
-			case 0xd4:
-				asm volatile("movdqa %0, %%xmm2" : : "m" (ret));
-				break;
-			case 0xec:
-				asm volatile("movdqa %0, %%xmm5" : : "m" (ret));
-				break;
-			case 0xe3:
-				asm volatile("movdqa %0, %%xmm4" : : "m" (ret));
-				break;
-			case 0xda:
-				asm volatile("movdqa %0, %%xmm3" : : "m" (ret));
-				break;
-			case 0xf1:
-				asm volatile("movdqa %0, %%xmm6" : : "m" (ret));
-				break;
-			}
-			regs->ip += 5;
+			regs->ip += 3;
 		}
 	}
+
+#if DEBUG_INST_EMULATION
+	u8 buf[32];
+	copy_from_user((void *)buf, (const void __user *)(regs->ip - 16), sizeof(buf));
+	pr_info("invalid opcode %s %8llx %4x handled: %d REX: %#x %s\n", __instr_name ? __instr_name : "UNKNOWN",
+			swab64(*(u64*)&opcode.byte[0]), swab32(*(u32*)&opcode.byte[8]), handled, prefixREX, prefix66 ? "V" : "");
+	pr_info("code around ip: \n");
+	pr_info("%8llx %8llx %8llx %8llx\n", swab64(*(u64*)&buf[0]), swab64(*(u64*)&buf[8]),
+			swab64(*(u64*)&buf[16]), swab64(*(u64*)&buf[24]));
+#endif
 
 	if (!handled) {
 		if (notify_die(DIE_TRAP, "invalid opcode", regs, error_code,

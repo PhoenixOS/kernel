@@ -38,6 +38,14 @@ KCOV_INSTRUMENT		:= n
 
 CFLAGS_irq.o := -I$(src)/../include/asm/trace
 
+# ChaoZhuo lixin add start
+ifdef CONFIG_X86_64
+CFLAGS_REMOVE_SSEPlus_float_REF.o += -mno-sse -mno-mmx -mno-sse2 -msoft-float -mpreferred-stack-boundary=3
+else
+CFLAGS_REMOVE_SSEPlus_float_REF.o += -mno-sse -mno-mmx -mno-sse2 -msoft-float
+endif
+# ChaoZhuo lixin add end
+
 obj-y			:= process_$(BITS).o signal.o
 obj-$(CONFIG_COMPAT)	+= signal_compat.o
 obj-y			+= traps.o irq.o irq_$(BITS).o dumpstack_$(BITS).o
@@ -55,6 +63,7 @@ obj-y			+= alternative.o i8253.o pci-nommu.o hw_breakpoint.o
 obj-y			+= tsc.o tsc_msr.o io_delay.o rtc.o
 obj-y			+= pci-iommu_table.o
 obj-y			+= resource.o
+obj-y			+= SSEPlus_float_REF.o SSEPlus_ssse3_REF.o SSEPlus_sse4_REF.o SSEPlus_utils.o
 
 obj-y				+= process.o
 obj-y				+= fpu/
