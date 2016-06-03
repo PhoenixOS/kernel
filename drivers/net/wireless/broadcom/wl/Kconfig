@@ -1,0 +1,11 @@
+config WL
+	tristate "Broadcom 802.11a/b/g/n hybrid device driver"
+	depends on PCI && CFG80211
+	select MAC80211
+	select LIB80211
+	select LIB80211_CRYPT_TKIP
+	---help---
+	  This module adds support for Broadcom 802.11a/b/g/n hybrid Networking Device Driver.
+
+	  This driver can be built as a module (recommended) that will be called "wl".
+	  If unsure, say M.

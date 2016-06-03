@@ -14,5 +14,6 @@ if WLAN_VENDOR_BROADCOM
 source "drivers/net/wireless/broadcom/b43/Kconfig"
 source "drivers/net/wireless/broadcom/b43legacy/Kconfig"
 source "drivers/net/wireless/broadcom/brcm80211/Kconfig"
+source "drivers/net/wireless/broadcom/wl/Kconfig"
 
 endif # WLAN_VENDOR_BROADCOM

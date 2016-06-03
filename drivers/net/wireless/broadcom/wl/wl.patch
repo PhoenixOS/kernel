@@ -1,0 +1,43 @@
+--- a/Makefile
++++ b/Makefile
+@@ -145,7 +145,7 @@
+ EXTRA_CFLAGS       += -Wno-date-time
+ endif
+ 
+-EXTRA_LDFLAGS      := $(src)/lib/wlc_hybrid.o_shipped
++EXTRA_LDFLAGS      := $(srctree)/$(src)/lib$(if $(CONFIG_64BIT),64,32)/wlc_hybrid.o_shipped
+ 
+ KBASE              ?= /lib/modules/`uname -r`
+ KBUILD_DIR         ?= $(KBASE)/build
+--- a/src/wl/sys/wl_linux.c
++++ b/src/wl/sys/wl_linux.c
+@@ -217,7 +217,7 @@
+ #define to_str(s) #s
+ #define quote_str(s) to_str(s)
+ 
+-#define BRCM_WLAN_IFNAME eth%d
++#define BRCM_WLAN_IFNAME wlan%d
+ 
+ static char intf_name[IFNAMSIZ] = quote_str(BRCM_WLAN_IFNAME);
+ 
+@@ -2053,8 +2053,8 @@ wl_osl_pcie_rc(struct wl_info *wl, uint op, int param)
+ void
+ wl_dump_ver(wl_info_t *wl, struct bcmstrbuf *b)
+ {
+-	bcm_bprintf(b, "wl%d: %s %s version %s\n", wl->pub->unit,
+-		__DATE__, __TIME__, EPI_VERSION_STR);
++	bcm_bprintf(b, "wl%d: version %s\n", wl->pub->unit,
++		EPI_VERSION_STR);
+ }
+ 
+ #if defined(BCMDBG)
+@@ -2165,8 +2165,8 @@ wl_start(struct sk_buff *skb, struct net_device *dev)
+ 	wlif = WL_DEV_IF(dev);
+ 	wl = WL_INFO(dev);
+ 
++	skb->prev = NULL;
+ 	if (WL_ALL_PASSIVE_ENAB(wl) || (WL_RTR() && WL_CONFIG_SMP())) {
+-		skb->prev = NULL;
+ 
+ 		TXQ_LOCK(wl);
+ 
