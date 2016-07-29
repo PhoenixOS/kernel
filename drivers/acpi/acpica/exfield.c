@@ -413,6 +413,17 @@ acpi_ex_write_data_to_field(union acpi_operand_object *source_desc,
 			 *     Data[x-1]: (Bytes 2-x of the arbitrary length data buffer)
 			 */
 			length += 2;
+
+			/*
+			 * When using Field Attrib Raw Process, it looks like
+			 * the parameter access_length can be wrong and the
+			 * required output buffer can be much bigger.
+			 * So just take the incoming buffer length as the
+			 * reference.
+			 */
+			if (accessor_type == AML_FIELD_ATTRIB_RAW_PROCESS)
+				length = source_desc->buffer.length;
+
 			function = ACPI_WRITE | (accessor_type << 16);
 		} else {	/* IPMI */
 
