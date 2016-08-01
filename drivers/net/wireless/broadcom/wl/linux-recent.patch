@@ -28,3 +28,11 @@
  #define CHAN2G(_channel, _freq, _flags) {			\
  	.band			= IEEE80211_BAND_2GHZ,		\
  	.center_freq		= (_freq),			\
+@@ -1872,6 +1879,7 @@
+ 	}
+ 	set_wiphy_dev(wdev->wiphy, dev);
+ 	wdev->wiphy->max_scan_ssids = WL_NUM_SCAN_MAX;
++	wdev->wiphy->max_scan_ie_len = IEEE80211_MAX_DATA_LEN;
+ #if LINUX_VERSION_CODE >= KERNEL_VERSION(2, 6, 33)
+ 	wdev->wiphy->max_num_pmkids = WL_NUM_PMKIDS_MAX;
+ #endif
