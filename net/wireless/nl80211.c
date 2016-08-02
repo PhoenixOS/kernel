@@ -6510,7 +6510,10 @@ static int nl80211_trigger_scan(struct sk_buff *skb, struct genl_info *info)
 	else
 		ie_len = 0;
 
-	if (ie_len > wiphy->max_scan_ie_len) {
+	// @jide
+	// some driver doesn't set max_scan_ie_len, it causes the device cannot
+	// scan network. so we made the check only if max_scan_ie_len is non zero
+	if (wiphy->max_scan_ie_len > 0 && ie_len > wiphy->max_scan_ie_len) {
 		err = -EINVAL;
 		goto unlock;
 	}
