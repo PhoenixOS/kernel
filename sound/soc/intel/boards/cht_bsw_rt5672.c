@@ -294,10 +294,11 @@ static struct snd_soc_dai_link cht_dailink[] = {
 
 static int cht_suspend_pre(struct snd_soc_card *card)
 {
-	struct snd_soc_codec *codec;
+	struct snd_soc_component *component;
 
-	list_for_each_entry(codec, &card->codec_dev_list, card_list) {
-		if (!strcmp(codec->component.name, cht_bsw_codec_name)) {
+	list_for_each_entry(component, &card->component_dev_list, card_list) {
+		if (!strcmp(component->name, cht_bsw_codec_name)) {
+			struct snd_soc_codec *codec = snd_soc_component_to_codec(component);
 			dev_dbg(codec->dev, "disabling jack detect before going to suspend.\n");
 			rt5670_jack_suspend(codec);
 			break;
@@ -308,10 +309,11 @@ static int cht_suspend_pre(struct snd_soc_card *card)
 
 static int cht_resume_post(struct snd_soc_card *card)
 {
-	struct snd_soc_codec *codec;
+	struct snd_soc_component *component;
 
-	list_for_each_entry(codec, &card->codec_dev_list, card_list) {
-		if (!strcmp(codec->component.name, cht_bsw_codec_name)) {
+	list_for_each_entry(component, &card->component_dev_list, card_list) {
+		if (!strcmp(component->name,  cht_bsw_codec_name)) {
+			struct snd_soc_codec *codec = snd_soc_component_to_codec(component);
 			dev_dbg(codec->dev, "enabling jack detect for resume.\n");
 			rt5670_jack_resume(codec);
 			break;
