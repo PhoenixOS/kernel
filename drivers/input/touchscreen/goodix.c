@@ -76,6 +76,12 @@ struct goodix_ts_data {
 #define MAX_CONTACTS_LOC	5
 #define TRIGGER_LOC		6
 
+/* Add by leesheen start */
+static bool invert_x = false;
+static bool invert_y = false;
+static bool swap_xy = false;
+/* Add by leesheen end */
+
 static const unsigned long goodix_irq_flags[] = {
 	IRQ_TYPE_EDGE_RISING,
 	IRQ_TYPE_EDGE_FALLING,
@@ -521,6 +527,15 @@ static void goodix_read_config(struct goodix_ts_data *ts)
 		dev_dbg(&ts->client->dev,
 			 "Applying '180 degrees rotated screen' quirk\n");
 	}
+
+	/* Add by leesheen start */
+	if (invert_x)
+		ts->inverted_x = !ts->inverted_x;
+	if (invert_y)
+		ts->inverted_y = !ts->inverted_y;
+	if (swap_xy)
+		swap(ts->abs_x_max, ts->abs_y_max);
+	/* Add by leesheen end */
 }
 
 /**
@@ -885,6 +900,12 @@ static struct i2c_driver goodix_ts_driver = {
 	},
 };
 module_i2c_driver(goodix_ts_driver);
+
+/* Add by leesheen start */
+module_param(invert_x, bool, 0444);
+module_param(invert_y, bool, 0444);
+module_param(swap_xy, bool, 0444);
+/* Add by leesheen end */
 
 MODULE_AUTHOR("Benjamin Tissoires <benjamin.tissoires@gmail.com>");
 MODULE_AUTHOR("Bastien Nocera <hadess@hadess.net>");
