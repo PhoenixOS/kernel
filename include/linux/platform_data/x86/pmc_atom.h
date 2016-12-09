@@ -50,6 +50,9 @@
 				BIT_ORED_DEDICATED_IRQ_GPSC | \
 				BIT_SHARED_IRQ_GPSS)
 
+/* Platform clock control registers */
+#define PMC_CLK_CTL_0		0x60
+
 /* The timers acumulate time spent in sleep state */
 #define	PMC_S0IR_TMR		0x80
 #define	PMC_S0I1_TMR		0x84
