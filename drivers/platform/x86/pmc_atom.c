@@ -21,8 +21,7 @@
 #include <linux/debugfs.h>
 #include <linux/seq_file.h>
 #include <linux/io.h>
-
-#include <asm/pmc_atom.h>
+#include <linux/platform_data/x86/pmc_atom.h>
 
 struct pmc_bit_map {
 	const char *name;

@@ -1028,3 +1028,7 @@ config INTEL_TELEMETRY
 	  directly via debugfs files. Various tools may use
 	  this interface for SoC state monitoring.
 endif # X86_PLATFORM_DEVICES
+
+config PMC_ATOM
+	def_bool y
+        depends on PCI
