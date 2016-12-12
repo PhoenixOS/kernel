@@ -5,7 +5,7 @@ WL_SRC := $(WL_PATH)/hybrid-v35$(if $(filter x86,$(TARGET_KERNEL_ARCH)),,_64)-no
 WL_LIB := $(WL_PATH)/lib$(if $(filter x86,$(TARGET_KERNEL_ARCH)),32,64)
 $(WL_SRC):
 	@echo Downloading $(@F)...
-	$(hide) curl http://www.broadcom.com/docs/linux_sta/$(@F) > $@
+	$(hide) curl https://docs.broadcom.com/docs-and-downloads/docs/linux_sta/$(@F) > $@
 
 $(WL_PATH)/Makefile: $(WL_SRC) $(wildcard $(WL_PATH)/*.patch) $(if $(wildcard $(WL_LIB)),,FORCE)
 	$(hide) tar zxf $< -C $(@D) --overwrite && \
