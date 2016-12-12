@@ -361,3 +361,49 @@ void intel_lpe_audio_teardown(struct drm_i915_private *dev_priv)
 
 	spin_unlock_irqrestore(&dev_priv->irq_lock, irqflags);
 }
+
+
+/**
+ * intel_lpe_audio_notify() - notify lpe audio event
+ * audio driver and i915
+ * @dev_priv: the i915 drm device private data
+ * @eld : ELD data
+ * @port: port id
+ * @tmds_clk_speed: tmds clock frequency in Hz
+ * @connected: hdmi connected/disconnected
+ *
+ * Notify lpe audio driver of eld change.
+ */
+void intel_lpe_audio_notify(struct drm_i915_private *dev_priv,
+			void *eld, int port, int tmds_clk_speed,
+			bool connected)
+{
+	unsigned long irq_flags;
+
+	if (HAS_LPE_AUDIO(dev_priv)) {
+		struct intel_hdmi_lpe_audio_pdata *pdata = dev_get_platdata(
+			&(dev_priv->lpe_audio.platdev->dev));
+
+		spin_lock_irqsave(&pdata->lpe_audio_slock,
+			irq_flags);
+
+		if (eld != NULL) {
+			memcpy(pdata->eld.eld_data, eld,
+				HDMI_MAX_ELD_BYTES);
+			pdata->eld.port_id = port;
+
+			if (tmds_clk_speed)
+				pdata->tmds_clock_speed =
+					tmds_clk_speed;
+		}
+		pdata->hdmi_connected = connected;
+		if (pdata->notify_audio_lpe)
+			pdata->notify_audio_lpe(
+				(eld != NULL) ? &pdata->eld : NULL);
+		else
+			pdata->notify_pending = true;
+
+		spin_unlock_irqrestore(&pdata->lpe_audio_slock,
+			irq_flags);
+	}
+}
