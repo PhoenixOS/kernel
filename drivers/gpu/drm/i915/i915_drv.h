@@ -2081,6 +2081,12 @@ struct drm_i915_private {
 
 	struct intel_encoder *dig_port_map[I915_MAX_PORTS];
 
+	/* necessary resource sharing with HDMI LPE audio driver. */
+	struct {
+		struct platform_device *platdev;
+		int	irq;
+	} lpe_audio;
+
 	/*
 	 * NOTE: This is the dri1/ums dungeon, don't add stuff here. Your patch
 	 * will be rejected. Instead look for a better place.
@@ -2818,6 +2824,8 @@ struct drm_i915_cmd_table {
 #define HAS_RESOURCE_STREAMER(dev) (INTEL_INFO(dev)->has_resource_streamer)
 
 #define HAS_POOLED_EU(dev)	(INTEL_INFO(dev)->has_pooled_eu)
+
+#define HAS_LPE_AUDIO(dev_priv) ((dev_priv)->lpe_audio.platdev != NULL)
 
 #define INTEL_PCH_DEVICE_ID_MASK		0xff00
 #define INTEL_PCH_IBX_DEVICE_ID_TYPE		0x3b00
@@ -3568,6 +3576,13 @@ extern int i915_restore_state(struct drm_device *dev);
 /* i915_sysfs.c */
 void i915_setup_sysfs(struct drm_i915_private *dev_priv);
 void i915_teardown_sysfs(struct drm_i915_private *dev_priv);
+
+/* i915_lpe_audio.c */
+int  intel_lpe_audio_init(struct drm_i915_private *dev_priv);
+int  intel_lpe_audio_setup(struct drm_i915_private *dev_priv);
+void intel_lpe_audio_teardown(struct drm_i915_private *dev_priv);
+void intel_lpe_audio_irq_handler(struct drm_i915_private *dev_priv);
+bool intel_lpe_audio_detect(struct drm_i915_private *dev_priv);
 
 /* intel_i2c.c */
 extern int intel_setup_gmbus(struct drm_device *dev);
