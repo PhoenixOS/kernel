@@ -36,6 +36,7 @@
 #include <sound/initval.h>
 #include <drm/intel_lpe_audio.h>
 #include "intel_hdmi_lpe_audio.h"
+#include "intel_hdmi_audio.h"
 
 /* globals*/
 struct platform_device *gpdev;
@@ -461,9 +462,9 @@ static void notify_audio_lpe(void *audio_ptr)
 /**
  * hdmi_lpe_audio_probe - start bridge with i915
  *
- * This function is called when the i915 driver creates the hdmi-lpe-audio
- * platform device. Card creation is deferred until a hot plug event is
- * received
+ * This function is called when the i915 driver creates the
+ * hdmi-lpe-audio platform device. Card creation is deferred until a
+ * hot plug event is received
  */
 static int hdmi_lpe_audio_probe(struct platform_device *pdev)
 {
@@ -505,8 +506,8 @@ static int hdmi_lpe_audio_probe(struct platform_device *pdev)
 		(unsigned int)res_mmio->start, (unsigned int)res_mmio->end);
 
 	mmio_start = ioremap_nocache(res_mmio->start,
-				(size_t)((res_mmio->end - res_mmio->start)
-						+ 1));
+				(size_t)((res_mmio->end -
+					res_mmio->start) + 1));
 	if (!mmio_start) {
 		pr_err("Could not get ioremap\n");
 		return -EACCES;
@@ -556,11 +557,12 @@ static int hdmi_lpe_audio_probe(struct platform_device *pdev)
 
 	platform_set_drvdata(pdev, ctx);
 
+	ret = hdmi_audio_probe((void *)pdev);
+
 	pr_debug("hdmi lpe audio: setting pin eld notify callback\n");
 
 	spin_lock_irqsave(&pdata->lpe_audio_slock, flag_irq);
 	pdata->notify_audio_lpe = notify_audio_lpe;
-
 	if (pdata->notify_pending) {
 
 		pr_debug("%s: handle pending notification\n", __func__);
@@ -583,6 +585,8 @@ static int hdmi_lpe_audio_remove(struct platform_device *pdev)
 	struct hdmi_lpe_audio_ctx *ctx;
 
 	pr_debug("Enter %s\n", __func__);
+
+	hdmi_audio_remove(pdev);
 
 	/* get context, release resources */
 	ctx = platform_get_drvdata(pdev);
