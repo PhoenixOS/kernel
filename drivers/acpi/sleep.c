@@ -100,6 +100,9 @@ u32 acpi_target_system_state(void)
 EXPORT_SYMBOL_GPL(acpi_target_system_state);
 
 static bool pwr_btn_event_pending;
+#ifdef CONFIG_ACPI_FAKE_POWER_BUTTON_EVENT
+static bool fake_pwr_btn_event_for_android_pending;
+#endif /* CONFIG_ACPI_FAKE_POWER_BUTTON_EVENT */
 
 /*
  * The ACPI specification wants us to save NVS memory regions during hibernation
@@ -462,6 +465,29 @@ static void acpi_pm_end(void)
 	 */
 	acpi_target_sleep_state = ACPI_STATE_S0;
 	acpi_sleep_tts_switch(acpi_target_sleep_state);
+
+#ifdef CONFIG_ACPI_FAKE_POWER_BUTTON_EVENT
+	/*
+	 * @jide copy the following logic from acpi_pm_finish to here
+	 * because it is too early to notify the power button in acpi_pm_finish()
+	 * the button status is still in suspended at that time, the event is ignoreed
+	 * we move to acpi_pm_end() so the acpi_button_resume() set button.suspended to false
+	 */
+	if (!fake_pwr_btn_event_for_android_pending)
+		return;
+
+	fake_pwr_btn_event_for_android_pending = false;
+	struct device *pwr_btn_dev;
+	pwr_btn_dev = bus_find_device(&acpi_bus_type, NULL, NULL,
+				      find_powerf_dev);
+	if (pwr_btn_dev) {
+		struct acpi_device *device = to_acpi_device(pwr_btn_dev);
+		if (device->driver && device->driver->ops.notify) {
+			device->driver->ops.notify(device,
+						ACPI_BUTTON_NOTIFY_STATUS);
+		}
+	}
+#endif /* CONFIG_ACPI_FAKE_POWER_BUTTON_EVENT */
 }
 #else /* !CONFIG_ACPI_SLEEP */
 #define acpi_target_sleep_state	ACPI_STATE_S0
@@ -560,6 +586,9 @@ static int acpi_suspend_enter(suspend_state_t pm_state)
 			/* Flag for later */
 			pwr_btn_event_pending = true;
 		}
+#ifdef CONFIG_ACPI_FAKE_POWER_BUTTON_EVENT
+		fake_pwr_btn_event_for_android_pending = true;
+#endif /* CONFIG_ACPI_FAKE_POWER_BUTTON_EVENT */
 	}
 
 	/*

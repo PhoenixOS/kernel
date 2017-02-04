@@ -461,6 +461,17 @@ config ACPI_REDUCED_HARDWARE_ONLY
 
 source "drivers/acpi/nfit/Kconfig"
 
+config ACPI_FAKE_POWER_BUTTON_EVENT
+	bool "Fake Power Button Event on Resume For Android"
+	depends on ACPI_BUTTON
+	depends on ACPI_SLEEP
+	default n
+	help
+	  This enable a fake power button notification after system resume.
+	  The system might be waken up by any key event, Android system need a
+	  wakeup key to wake up the system. So we emulate a fake power button
+	  event just for android system.
+
 source "drivers/acpi/apei/Kconfig"
 source "drivers/acpi/dptf/Kconfig"
 
