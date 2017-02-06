@@ -12,5 +12,7 @@ $(WL_PATH)/Makefile: $(WL_SRC) $(wildcard $(WL_PATH)/*.patch) $(if $(wildcard $(
 		rm -rf $(WL_LIB) && mv $(@D)/lib $(WL_LIB) && \
 		patch -p1 -d $(@D) -i wl.patch && \
 		patch -p1 -d $(@D) -i linux-recent.patch
+		patch -p1 -d $(@D) -i linux47.patch
+		patch -p1 -d $(@D) -i linux48.patch
 
 $(INSTALLED_KERNEL_TARGET): $(if $(WL_ENABLED),$(WL_PATH)/Makefile)
