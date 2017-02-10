@@ -584,6 +584,7 @@ struct intel_uncore_funcs {
 struct intel_uncore {
 	spinlock_t lock; /** lock is also taken in irq contexts. */
 
+	struct notifier_block pmic_bus_access_nb;
 	struct intel_uncore_funcs funcs;
 
 	unsigned fifo_count;
