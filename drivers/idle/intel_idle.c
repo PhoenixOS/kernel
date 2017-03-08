@@ -74,13 +74,6 @@ static struct cpuidle_driver intel_idle_driver = {
 /* intel_idle.max_cstate=0 disables driver */
 static int max_cstate = CPUIDLE_STATE_MAX - 1;
 
-/* ChaoZhuo lixin add start */
-//FIXME It's not a good idea.
-extern struct cpuinfo_x86 boot_cpu_data;
-
-char cpu_name[][64] = {"J1900", "Z3745", "Z3735D", "N2940", "Z3740", "Z3740D", "Z3795"};
-/* ChaoZhuo lixin add end */
-
 static unsigned int mwait_substates;
 
 #define LAPIC_TIMER_ALWAYS_RELIABLE 0xFFFFFFFF
@@ -1402,21 +1395,6 @@ static int intel_idle_cpu_init(int cpu)
 	return 0;
 }
 
-/* ChaoZhuo lixin add start */
-//FIXME It's not a good idea.
-static void x86_cpu_name_look_for(void)
-{
-	int i;
-	char *local_cpu_name = boot_cpu_data.x86_model_id;
-
-	int cpu_name_len = sizeof (cpu_name) / 64;
-
-	for (i=0; i<cpu_name_len; i++)
-		if (strstr(local_cpu_name, cpu_name[i]))
-			max_cstate = 1;
-}
-/* ChaoZhuo lixin add end */
-
 static int __init intel_idle_init(void)
 {
 	int retval, i;
@@ -1461,11 +1439,6 @@ static int __init intel_idle_init(void)
 		lapic_timer_reliable_states = LAPIC_TIMER_ALWAYS_RELIABLE;
 	else
 		on_each_cpu(__setup_broadcast_timer, (void *)true, 1);
-
-	/* ChaoZhuo lixin add start */
-	//FIXME It's not a good idea.
-	x86_cpu_name_look_for();
-	/* ChaoZhuo lixin add end */
 
 	cpu_notifier_register_done();
 
