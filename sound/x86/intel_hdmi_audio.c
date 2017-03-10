@@ -1922,6 +1922,13 @@ int hdmi_audio_remove(void *pdevptr)
 	return 0;
 }
 
+static const struct acpi_device_id had_acpi_ids[] = {
+    { "HAD0F28", 0 },
+    { "HAD022A8", 0 },
+    {},
+};
+MODULE_DEVICE_TABLE(acpi, had_acpi_ids);
+
 MODULE_AUTHOR("Sailaja Bandarupalli <sailaja.bandarupalli@intel.com>");
 MODULE_AUTHOR("Ramesh Babu K V <ramesh.babu@intel.com>");
 MODULE_AUTHOR("Vaibhav Agarwal <vaibhav.agarwal@intel.com>");
