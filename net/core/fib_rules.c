@@ -471,6 +471,24 @@ int fib_nl_newrule(struct sk_buff *skb, struct nlmsghdr *nlh)
 	if (rule->l3mdev && rule->table)
 		goto errout_free;
 
+	if (tb[FRA_UID_START] && tb[FRA_UID_END]) {
+		if (current_user_ns() != net->user_ns) {
+			err = -EPERM;
+			goto errout_free;
+		}
+
+		rule->uid_range.start = make_kuid(current_user_ns(),
+						nla_get_u32(tb[FRA_UID_START]));
+		rule->uid_range.end = make_kuid(current_user_ns(),
+						nla_get_u32(tb[FRA_UID_END]));
+
+		if (!uid_range_set(&rule->uid_range) ||
+				!uid_lte(rule->uid_range.start, rule->uid_range.end))
+			goto errout_free;
+	} else {
+		rule->uid_range = fib_kuid_range_unset;
+	}
+
 	if (tb[FRA_UID_RANGE]) {
 		if (current_user_ns() != net->user_ns) {
 			err = -EPERM;
@@ -573,6 +591,18 @@ int fib_nl_delrule(struct sk_buff *skb, struct nlmsghdr *nlh)
 	err = validate_rulemsg(frh, tb, ops);
 	if (err < 0)
 		goto errout;
+
+	if (tb[FRA_UID_START] && tb[FRA_UID_END]) {
+		range.start = make_kuid(current_user_ns(),
+					nla_get_u32(tb[FRA_UID_START]));
+		range.end = make_kuid(current_user_ns(),
+					nla_get_u32(tb[FRA_UID_END]));
+
+		if (!uid_range_set(&range))
+			goto errout;
+	} else {
+		range = fib_kuid_range_unset;
+	}
 
 	if (tb[FRA_UID_RANGE]) {
 		range = nla_get_kuid_range(tb);
