@@ -1583,10 +1583,12 @@ static void call_console_drivers(int level,
 		if (!cpu_online(smp_processor_id()) &&
 		    !(con->flags & CON_ANYTIME))
 			continue;
+#if 0
 		if (con->flags & CON_EXTENDED)
 			con->write(con, ext_text, ext_len);
 		else
 			con->write(con, text, len);
+#endif
 	}
 }
 
