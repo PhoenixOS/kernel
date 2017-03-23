@@ -157,6 +157,7 @@ static void mt_post_parse(struct mt_device *td);
 #define MT_CLS_GENERALTOUCH_TWOFINGERS		0x0108
 #define MT_CLS_GENERALTOUCH_PWT_TENFINGERS	0x0109
 #define MT_CLS_VTL				0x0110
+#define MT_CLS_UIWORKS				0x0105
 
 #define MT_DEFAULT_MAXCONTACT	10
 #define MT_MAX_MAXCONTACT	250
@@ -236,6 +237,9 @@ static struct mt_class mt_classes[] = {
 			MT_QUIRK_ALWAYS_VALID,
 		.sn_move = 4096,
 		.sn_pressure = 32,
+	},
+	{ .name = MT_CLS_UIWORKS,
+		.quirks =  MT_QUIRK_ALWAYS_VALID,
 	},
 	{ .name = MT_CLS_TOPSEED,
 		.quirks = MT_QUIRK_ALWAYS_VALID,
@@ -1451,6 +1455,16 @@ static const struct hid_device_id mt_devices[] = {
 	{ .driver_data = MT_CLS_NSMU,
 		MT_USB_DEVICE(USB_VENDOR_ID_TOUCH_INTL,
 			USB_DEVICE_ID_TOUCH_INTL_MULTI_TOUCH) },
+
+	/* Uiworks */
+	{ .driver_data = MT_CLS_UIWORKS,
+		HID_USB_DEVICE(0x23FF, 0x1600) },
+	{ .driver_data = MT_CLS_UIWORKS,
+		HID_USB_DEVICE(0x23FF, 0x1601) },
+	{ .driver_data = MT_CLS_UIWORKS,
+		HID_USB_DEVICE(0x23FF, 0x1602) },
+	{ .driver_data = MT_CLS_UIWORKS,
+		HID_USB_DEVICE(0x23FF, 0x1603) },
 
 	/* Unitec panels */
 	{ .driver_data = MT_CLS_NSMU,
