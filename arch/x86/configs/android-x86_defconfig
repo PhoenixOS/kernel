@@ -1,6 +1,6 @@
 #
 # Automatically generated file; DO NOT EDIT.
-# Linux/x86 4.9.13 Kernel Configuration
+# Linux/x86 4.9.21 Kernel Configuration
 #
 # CONFIG_64BIT is not set
 CONFIG_X86_32=y
@@ -1575,7 +1575,7 @@ CONFIG_PANEL=m
 CONFIG_PANEL_PARPORT=0
 CONFIG_PANEL_PROFILE=5
 # CONFIG_PANEL_CHANGE_MESSAGE is not set
-CONFIG_UID_CPUTIME=y
+# CONFIG_UID_SYS_STATS is not set
 CONFIG_MEMORY_STATE_TIME=y
 CONFIG_C2PORT=m
 CONFIG_C2PORT_DURAMAR_2150=m
