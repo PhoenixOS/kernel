@@ -363,7 +363,6 @@ static void fbcon_update_softback(struct vc_data *vc)
 
 static void fb_flashcursor(struct work_struct *work)
 {
-#if 0
 	struct fb_info *info = container_of(work, struct fb_info, queue);
 	struct fbcon_ops *ops = info->fbcon_par;
 	struct vc_data *vc = NULL;
@@ -394,7 +393,6 @@ static void fb_flashcursor(struct work_struct *work)
 	ops->cursor(vc, info, mode, softback_lines, get_color(vc, info, c, 1),
 		    get_color(vc, info, c, 0));
 	console_unlock();
-#endif
 }
 
 static void cursor_timer_handler(unsigned long dev_addr)
@@ -1310,7 +1308,6 @@ static void fbcon_clear_margins(struct vc_data *vc, int bottom_only)
 
 static void fbcon_cursor(struct vc_data *vc, int mode)
 {
-#if 0
 	struct fb_info *info = registered_fb[con2fb_map[vc->vc_num]];
 	struct fbcon_ops *ops = info->fbcon_par;
 	int y;
@@ -1338,7 +1335,6 @@ static void fbcon_cursor(struct vc_data *vc, int mode)
 
 	ops->cursor(vc, info, mode, y, get_color(vc, info, c, 1),
 		    get_color(vc, info, c, 0));
-#endif
 }
 
 static int scrollback_phys_max = 0;
