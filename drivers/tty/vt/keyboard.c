@@ -522,6 +522,7 @@ static void fn_lastcons(struct vc_data *vc)
 
 static void fn_dec_console(struct vc_data *vc)
 {
+#if 0
 	int i, cur = fg_console;
 
 	/* Currently switching?  Queue this next switch relative to that. */
@@ -535,10 +536,12 @@ static void fn_dec_console(struct vc_data *vc)
 			break;
 	}
 	set_console(i);
+#endif
 }
 
 static void fn_inc_console(struct vc_data *vc)
 {
+#if 0
 	int i, cur = fg_console;
 
 	/* Currently switching?  Queue this next switch relative to that. */
@@ -552,6 +555,7 @@ static void fn_inc_console(struct vc_data *vc)
 			break;
 	}
 	set_console(i);
+#endif
 }
 
 static void fn_send_intr(struct vc_data *vc)
