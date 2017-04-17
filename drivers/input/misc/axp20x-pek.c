@@ -282,11 +282,12 @@ static int axp20x_pek_probe(struct platform_device *pdev)
 
 		/*
 		 * On Cherry Trail platforms (hrv == 3), do not register the
-		 * input device if there is an "INTCFD9" gpio
+		 * input device if there is an "INTCFD9" or "ACPI0011" gpio
 		 * button ACPI device, as that handles the power button too,
 		 * and otherwise we end up reporting all presses twice.
 		 */
-		if (hrv == 3 && acpi_dev_found("INTCFD9"))
+		if (hrv == 3 && (acpi_dev_found("INTCFD9") ||
+				 acpi_dev_found("ACPI0011")))
 			register_input_device = false;
 	}
 #endif
