@@ -9,7 +9,7 @@ $(WL_SRC):
 
 $(WL_LIB): $(WL_SRC) $(wildcard $(WL_PATH)/*.patch)
 	$(hide) tar zxf $< -C $(@D) --overwrite -m && \
-		rm -rf $@ && mv $(@D)/lib $@ && \
+		rm -rf $@ && mv $(@D)/lib $@ && touch $@ && \
 		patch -p1 -d $(@D) -i wl.patch && \
 		patch -p1 -d $(@D) -i linux-recent.patch
 
