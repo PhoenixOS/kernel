@@ -799,6 +799,10 @@ static const struct acpi_device_id arizona_acpi_match[] = {
 		.id = "WM510205",
 		.driver_data = WM5102,
 	},
+	{
+		.id = "WM510204",
+		.driver_data = WM5102,
+	},
 	{},
 };
 MODULE_DEVICE_TABLE(acpi, arizona_acpi_match);
@@ -1159,7 +1163,7 @@ int arizona_dev_init(struct arizona *arizona)
 		arizona->pdata.irq_gpio = acpi_dev_gpio_irq_get(ACPI_COMPANION(dev),
 								0);
 	else {
-		/* ACPI _CRS value for WM510205:
+		/* ACPI _CRS value for WM51020[45]:
 		 * arizona->pdata.irq_gpio = 0x04 ;
 		 */
 		arizona->pdata.irq_gpio = 146 ;

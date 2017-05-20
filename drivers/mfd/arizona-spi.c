@@ -142,6 +142,10 @@ static const struct acpi_device_id arizona_acpi_match[] = {
 		.id = "WM510205",
 		.driver_data = WM5102,
 	},
+	{
+		.id = "WM510204",
+		.driver_data = WM5102,
+	},
 	{ },
 };
 MODULE_DEVICE_TABLE(acpi, arizona_acpi_match);
