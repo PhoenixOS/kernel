@@ -1093,7 +1093,20 @@ int arizona_dev_init(struct arizona *arizona)
 	}
 
 	arizona->pdata.ldoena = 405;
-	arizona->pdata.reset = 342;
+	arizona->pdata.reset = 246;
+	arizona->pdata.irq_gpio = 342;
+	arizona->pdata.irq_flags = IRQF_TRIGGER_FALLING;
+	arizona->pdata.gpio_base = 300;
+	arizona->pdata.micd_pol_gpio = 304;
+	arizona->pdata.clk32k_src = 2;
+
+	/* remove kernel warnning to defer probe */
+	if (arizona->pdata.reset) {
+		ret = gpio_request(arizona->pdata.reset, "arizona /RESET");
+		if (ret!=0)
+			return -EPROBE_DEFER;
+		gpio_free(arizona->pdata.reset);
+	}
 
 	regcache_cache_only(arizona->regmap, true);
 
@@ -1155,28 +1168,10 @@ int arizona_dev_init(struct arizona *arizona)
 		goto err_early;
 	}
 
-#ifdef CONFIG_ACPI
-	arizona->pdata.irq_flags = IRQF_TRIGGER_RISING|IRQF_TRIGGER_FALLING;
-
-	/* get the ACPI GpioInt ressource for this device */
-	if (ACPI_COMPANION(dev))
-		arizona->pdata.irq_gpio = acpi_dev_gpio_irq_get(ACPI_COMPANION(dev),
-								0);
-	else {
-		/* ACPI _CRS value for WM51020[45]:
-		 * arizona->pdata.irq_gpio = 0x04 ;
-		 */
-		arizona->pdata.irq_gpio = 146 ;
-	}
-
-	dev_err(dev, "(ACPI) using irq_gpio GPIO = %i\n",arizona->pdata.irq_gpio);
-
-#endif
-
 	if (arizona->pdata.reset) {
-		/* Start out with /RESET low to put the chip into reset */
+		/* Start out with /RESET high to put the chip into reset */
 		ret = devm_gpio_request_one(arizona->dev, arizona->pdata.reset,
-					    GPIOF_DIR_OUT | GPIOF_INIT_LOW,
+					    GPIOF_DIR_OUT | GPIOF_INIT_HIGH,
 					    "arizona /RESET");
 		if (ret != 0) {
 			/* try to get the reset GPIO pin, otherwise let it fail */
