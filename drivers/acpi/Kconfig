@@ -489,6 +489,12 @@ config ACPI_EXTLOG
 	  driver adds support for that functionality with corresponding
 	  tracepoint which carries that information to userspace.
 
+config ACPI_SURFACE3_POWER_OPREGION
+	tristate "Surface 3 battery platform operation region support"
+	help
+	  Select this option to enable support for ACPI operation
+	  region of the Surface 3 battery platform driver.
+
 menuconfig PMIC_OPREGION
 	bool "PMIC (Power Management Integrated Circuit) operation region support"
 	help

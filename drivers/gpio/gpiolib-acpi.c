@@ -176,7 +176,7 @@ static acpi_status acpi_gpiochip_request_interrupt(struct acpi_resource *ares,
 	irq_handler_t handler = NULL;
 	struct gpio_desc *desc;
 	unsigned long irqflags;
-	int ret, pin, irq;
+	int ret, pin, irq, value;
 
 	if (ares->type != ACPI_RESOURCE_TYPE_GPIO)
 		return AE_OK;
@@ -214,6 +214,8 @@ static acpi_status acpi_gpiochip_request_interrupt(struct acpi_resource *ares,
 	}
 
 	gpiod_direction_input(desc);
+
+	value = gpiod_get_value(desc);
 
 	ret = gpiochip_lock_as_irq(chip, pin);
 	if (ret) {
@@ -267,6 +269,15 @@ static acpi_status acpi_gpiochip_request_interrupt(struct acpi_resource *ares,
 	}
 
 	list_add_tail(&event->node, &acpi_gpio->events);
+
+	/*
+	 * Make sure we trigger the initial state of the IRQ when
+	 * using RISING or FALLING.
+	 */
+	if (((irqflags & IRQF_TRIGGER_RISING) && value == 1) ||
+	    ((irqflags & IRQF_TRIGGER_FALLING) && value == 0))
+		handler(-1, event);
+
 	return AE_OK;
 
 fail_free_event:
