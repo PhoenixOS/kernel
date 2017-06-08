@@ -13775,6 +13775,13 @@ static void update_scanline_offset(struct intel_crtc *crtc)
 	 * type. For DP ports it behaves like most other platforms, but on HDMI
 	 * there's an extra 1 line difference. So we need to add two instead of
 	 * one to the value.
+	 *
+	 * On VLV/CHV DSI the scanline counter would appear to increment
+	 * approx. 1/3 of a scanline before start of vblank. Unfortunately
+	 * that we can't tell whether we're in vblank or not while we're
+	 * on that particular line. We must set scanline_offset to 1 so
+	 * that the vblank timestamps come out correct when we query
+	 * the scanline counter from the vblank interrupt handler.
 	 */
 	if (IS_GEN2(dev)) {
 		const struct drm_display_mode *adjusted_mode = &crtc->config->base.adjusted_mode;
