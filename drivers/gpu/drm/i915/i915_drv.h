@@ -1225,7 +1225,7 @@ struct intel_gen6_power_mgmt {
 	unsigned boosts;
 
 	/* manual wa residency calculations */
-	struct intel_rps_ei up_ei, down_ei;
+	struct intel_rps_ei ei;
 
 	/*
 	 * Protects RPS/RC6 register access and PCU communication.
@@ -1750,8 +1750,6 @@ struct drm_i915_private {
 	struct kmem_cache *requests;
 
 	const struct intel_device_info info;
-
-	int relative_constants_mode;
 
 	void __iomem *regs;
 
@@ -3702,6 +3700,8 @@ extern void intel_display_print_error_state(struct drm_i915_error_state_buf *e,
 
 int sandybridge_pcode_read(struct drm_i915_private *dev_priv, u32 mbox, u32 *val);
 int sandybridge_pcode_write(struct drm_i915_private *dev_priv, u32 mbox, u32 val);
+int skl_pcode_request(struct drm_i915_private *dev_priv, u32 mbox, u32 request,
+		      u32 reply_mask, u32 reply, int timeout_base_ms);
 
 /* intel_sideband.c */
 u32 vlv_punit_read(struct drm_i915_private *dev_priv, u32 addr);

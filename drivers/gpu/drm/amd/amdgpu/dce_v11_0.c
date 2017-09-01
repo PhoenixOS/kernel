@@ -2593,6 +2593,9 @@ static int dce_v11_0_cursor_move_locked(struct drm_crtc *crtc,
 	struct amdgpu_device *adev = crtc->dev->dev_private;
 	int xorigin = 0, yorigin = 0;
 
+	amdgpu_crtc->cursor_x = x;
+	amdgpu_crtc->cursor_y = y;
+
 	/* avivo cursor are offset into the total surface */
 	x += crtc->x;
 	y += crtc->y;
@@ -2611,9 +2614,6 @@ static int dce_v11_0_cursor_move_locked(struct drm_crtc *crtc,
 	WREG32(mmCUR_HOT_SPOT + amdgpu_crtc->crtc_offset, (xorigin << 16) | yorigin);
 	WREG32(mmCUR_SIZE + amdgpu_crtc->crtc_offset,
 	       ((amdgpu_crtc->cursor_width - 1) << 16) | (amdgpu_crtc->cursor_height - 1));
-
-	amdgpu_crtc->cursor_x = x;
-	amdgpu_crtc->cursor_y = y;
 
 	return 0;
 }
@@ -2677,12 +2677,11 @@ static int dce_v11_0_crtc_cursor_set2(struct drm_crtc *crtc,
 		return ret;
 	}
 
-	amdgpu_crtc->cursor_width = width;
-	amdgpu_crtc->cursor_height = height;
-
 	dce_v11_0_lock_cursor(crtc, true);
 
-	if (hot_x != amdgpu_crtc->cursor_hot_x ||
+	if (width != amdgpu_crtc->cursor_width ||
+	    height != amdgpu_crtc->cursor_height ||
+	    hot_x != amdgpu_crtc->cursor_hot_x ||
 	    hot_y != amdgpu_crtc->cursor_hot_y) {
 		int x, y;
 
@@ -2691,6 +2690,8 @@ static int dce_v11_0_crtc_cursor_set2(struct drm_crtc *crtc,
 
 		dce_v11_0_cursor_move_locked(crtc, x, y);
 
+		amdgpu_crtc->cursor_width = width;
+		amdgpu_crtc->cursor_height = height;
 		amdgpu_crtc->cursor_hot_x = hot_x;
 		amdgpu_crtc->cursor_hot_y = hot_y;
 	}
@@ -3813,8 +3814,14 @@ static void dce_v11_0_encoder_add(struct amdgpu_device *adev,
 	default:
 		encoder->possible_crtcs = 0x3;
 		break;
+	case 3:
+		encoder->possible_crtcs = 0x7;
+		break;
 	case 4:
 		encoder->possible_crtcs = 0xf;
+		break;
+	case 5:
+		encoder->possible_crtcs = 0x1f;
 		break;
 	case 6:
 		encoder->possible_crtcs = 0x3f;

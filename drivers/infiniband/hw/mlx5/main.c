@@ -496,6 +496,7 @@ static int mlx5_ib_query_device(struct ib_device *ibdev,
 	struct mlx5_ib_dev *dev = to_mdev(ibdev);
 	struct mlx5_core_dev *mdev = dev->mdev;
 	int err = -ENOMEM;
+	int max_sq_desc;
 	int max_rq_sg;
 	int max_sq_sg;
 	u64 min_page_size = 1ull << MLX5_CAP_GEN(mdev, log_pg_sz);
@@ -618,9 +619,10 @@ static int mlx5_ib_query_device(struct ib_device *ibdev,
 	props->max_qp_wr	   = 1 << MLX5_CAP_GEN(mdev, log_max_qp_sz);
 	max_rq_sg =  MLX5_CAP_GEN(mdev, max_wqe_sz_rq) /
 		     sizeof(struct mlx5_wqe_data_seg);
-	max_sq_sg = (MLX5_CAP_GEN(mdev, max_wqe_sz_sq) -
-		     sizeof(struct mlx5_wqe_ctrl_seg)) /
-		     sizeof(struct mlx5_wqe_data_seg);
+	max_sq_desc = min_t(int, MLX5_CAP_GEN(mdev, max_wqe_sz_sq), 512);
+	max_sq_sg = (max_sq_desc - sizeof(struct mlx5_wqe_ctrl_seg) -
+		     sizeof(struct mlx5_wqe_raddr_seg)) /
+		sizeof(struct mlx5_wqe_data_seg);
 	props->max_sge = min(max_rq_sg, max_sq_sg);
 	props->max_sge_rd	   = MLX5_MAX_SGE_RD;
 	props->max_cq		   = 1 << MLX5_CAP_GEN(mdev, log_max_cq);
@@ -3139,9 +3141,11 @@ static void *mlx5_ib_add(struct mlx5_core_dev *mdev)
 	if (err)
 		goto err_rsrc;
 
-	err = mlx5_ib_alloc_q_counters(dev);
-	if (err)
-		goto err_odp;
+	if (MLX5_CAP_GEN(dev->mdev, max_qp_cnt)) {
+		err = mlx5_ib_alloc_q_counters(dev);
+		if (err)
+			goto err_odp;
+	}
 
 	err = ib_register_device(&dev->ib_dev, NULL);
 	if (err)
@@ -3169,7 +3173,8 @@ err_dev:
 	ib_unregister_device(&dev->ib_dev);
 
 err_q_cnt:
-	mlx5_ib_dealloc_q_counters(dev);
+	if (MLX5_CAP_GEN(dev->mdev, max_qp_cnt))
+		mlx5_ib_dealloc_q_counters(dev);
 
 err_odp:
 	mlx5_ib_odp_remove_one(dev);
@@ -3199,7 +3204,8 @@ static void mlx5_ib_remove(struct mlx5_core_dev *mdev, void *context)
 
 	mlx5_remove_roce_notifier(dev);
 	ib_unregister_device(&dev->ib_dev);
-	mlx5_ib_dealloc_q_counters(dev);
+	if (MLX5_CAP_GEN(dev->mdev, max_qp_cnt))
+		mlx5_ib_dealloc_q_counters(dev);
 	destroy_umrc_res(dev);
 	mlx5_ib_odp_remove_one(dev);
 	destroy_dev_resources(&dev->devr);

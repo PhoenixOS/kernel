@@ -1469,7 +1469,6 @@ ctx_group_list(struct perf_event *event, struct perf_event_context *ctx)
 static void
 list_add_event(struct perf_event *event, struct perf_event_context *ctx)
 {
-
 	lockdep_assert_held(&ctx->lock);
 
 	WARN_ON_ONCE(event->attach_state & PERF_ATTACH_CONTEXT);
@@ -1624,6 +1623,8 @@ static void perf_group_attach(struct perf_event *event)
 {
 	struct perf_event *group_leader = event->group_leader, *pos;
 
+	lockdep_assert_held(&event->ctx->lock);
+
 	/*
 	 * We can have double attach due to group movement in perf_event_open.
 	 */
@@ -1696,6 +1697,8 @@ static void perf_group_detach(struct perf_event *event)
 {
 	struct perf_event *sibling, *tmp;
 	struct list_head *list = NULL;
+
+	lockdep_assert_held(&event->ctx->lock);
 
 	/*
 	 * We can have double detach due to exit/hot-unplug + close.
@@ -1895,9 +1898,29 @@ __perf_remove_from_context(struct perf_event *event,
  */
 static void perf_remove_from_context(struct perf_event *event, unsigned long flags)
 {
-	lockdep_assert_held(&event->ctx->mutex);
+	struct perf_event_context *ctx = event->ctx;
+
+	lockdep_assert_held(&ctx->mutex);
 
 	event_function_call(event, __perf_remove_from_context, (void *)flags);
+
+	/*
+	 * The above event_function_call() can NO-OP when it hits
+	 * TASK_TOMBSTONE. In that case we must already have been detached
+	 * from the context (by perf_event_exit_event()) but the grouping
+	 * might still be in-tact.
+	 */
+	WARN_ON_ONCE(event->attach_state & PERF_ATTACH_CONTEXT);
+	if ((flags & DETACH_GROUP) &&
+	    (event->attach_state & PERF_ATTACH_GROUP)) {
+		/*
+		 * Since in that case we cannot possibly be scheduled, simply
+		 * detach now.
+		 */
+		raw_spin_lock_irq(&ctx->lock);
+		perf_group_detach(event);
+		raw_spin_unlock_irq(&ctx->lock);
+	}
 }
 
 /*
@@ -3438,14 +3461,15 @@ struct perf_read_data {
 	int ret;
 };
 
-static int find_cpu_to_read(struct perf_event *event, int local_cpu)
+static int __perf_event_read_cpu(struct perf_event *event, int event_cpu)
 {
-	int event_cpu = event->oncpu;
 	u16 local_pkg, event_pkg;
 
 	if (event->group_caps & PERF_EV_CAP_READ_ACTIVE_PKG) {
-		event_pkg =  topology_physical_package_id(event_cpu);
-		local_pkg =  topology_physical_package_id(local_cpu);
+		int local_cpu = smp_processor_id();
+
+		event_pkg = topology_physical_package_id(event_cpu);
+		local_pkg = topology_physical_package_id(local_cpu);
 
 		if (event_pkg == local_pkg)
 			return local_cpu;
@@ -3575,7 +3599,7 @@ u64 perf_event_read_local(struct perf_event *event)
 
 static int perf_event_read(struct perf_event *event, bool group)
 {
-	int ret = 0, cpu_to_read, local_cpu;
+	int event_cpu, ret = 0;
 
 	/*
 	 * If event is enabled and currently active on a CPU, update the
@@ -3588,21 +3612,25 @@ static int perf_event_read(struct perf_event *event, bool group)
 			.ret = 0,
 		};
 
-		local_cpu = get_cpu();
-		cpu_to_read = find_cpu_to_read(event, local_cpu);
-		put_cpu();
+		event_cpu = READ_ONCE(event->oncpu);
+		if ((unsigned)event_cpu >= nr_cpu_ids)
+			return 0;
+
+		preempt_disable();
+		event_cpu = __perf_event_read_cpu(event, event_cpu);
 
 		/*
 		 * Purposely ignore the smp_call_function_single() return
 		 * value.
 		 *
-		 * If event->oncpu isn't a valid CPU it means the event got
+		 * If event_cpu isn't a valid CPU it means the event got
 		 * scheduled out and that will have updated the event count.
 		 *
 		 * Therefore, either way, we'll have an up-to-date event count
 		 * after this.
 		 */
-		(void)smp_call_function_single(cpu_to_read, __perf_event_read, &data, 1);
+		(void)smp_call_function_single(event_cpu, __perf_event_read, &data, 1);
+		preempt_enable();
 		ret = data.ret;
 	} else if (event->state == PERF_EVENT_STATE_INACTIVE) {
 		struct perf_event_context *ctx = event->ctx;
@@ -6583,6 +6611,27 @@ static void perf_event_mmap_event(struct perf_mmap_event *mmap_event)
 	char *buf = NULL;
 	char *name;
 
+	if (vma->vm_flags & VM_READ)
+		prot |= PROT_READ;
+	if (vma->vm_flags & VM_WRITE)
+		prot |= PROT_WRITE;
+	if (vma->vm_flags & VM_EXEC)
+		prot |= PROT_EXEC;
+
+	if (vma->vm_flags & VM_MAYSHARE)
+		flags = MAP_SHARED;
+	else
+		flags = MAP_PRIVATE;
+
+	if (vma->vm_flags & VM_DENYWRITE)
+		flags |= MAP_DENYWRITE;
+	if (vma->vm_flags & VM_MAYEXEC)
+		flags |= MAP_EXECUTABLE;
+	if (vma->vm_flags & VM_LOCKED)
+		flags |= MAP_LOCKED;
+	if (vma->vm_flags & VM_HUGETLB)
+		flags |= MAP_HUGETLB;
+
 	if (file) {
 		struct inode *inode;
 		dev_t dev;
@@ -6608,27 +6657,6 @@ static void perf_event_mmap_event(struct perf_mmap_event *mmap_event)
 		gen = inode->i_generation;
 		maj = MAJOR(dev);
 		min = MINOR(dev);
-
-		if (vma->vm_flags & VM_READ)
-			prot |= PROT_READ;
-		if (vma->vm_flags & VM_WRITE)
-			prot |= PROT_WRITE;
-		if (vma->vm_flags & VM_EXEC)
-			prot |= PROT_EXEC;
-
-		if (vma->vm_flags & VM_MAYSHARE)
-			flags = MAP_SHARED;
-		else
-			flags = MAP_PRIVATE;
-
-		if (vma->vm_flags & VM_DENYWRITE)
-			flags |= MAP_DENYWRITE;
-		if (vma->vm_flags & VM_MAYEXEC)
-			flags |= MAP_EXECUTABLE;
-		if (vma->vm_flags & VM_LOCKED)
-			flags |= MAP_LOCKED;
-		if (vma->vm_flags & VM_HUGETLB)
-			flags |= MAP_HUGETLB;
 
 		goto got_name;
 	} else {
@@ -9503,6 +9531,37 @@ static int perf_event_set_clock(struct perf_event *event, clockid_t clk_id)
 	return 0;
 }
 
+/*
+ * Variation on perf_event_ctx_lock_nested(), except we take two context
+ * mutexes.
+ */
+static struct perf_event_context *
+__perf_event_ctx_lock_double(struct perf_event *group_leader,
+			     struct perf_event_context *ctx)
+{
+	struct perf_event_context *gctx;
+
+again:
+	rcu_read_lock();
+	gctx = READ_ONCE(group_leader->ctx);
+	if (!atomic_inc_not_zero(&gctx->refcount)) {
+		rcu_read_unlock();
+		goto again;
+	}
+	rcu_read_unlock();
+
+	mutex_lock_double(&gctx->mutex, &ctx->mutex);
+
+	if (group_leader->ctx != gctx) {
+		mutex_unlock(&ctx->mutex);
+		mutex_unlock(&gctx->mutex);
+		put_ctx(gctx);
+		goto again;
+	}
+
+	return gctx;
+}
+
 /**
  * sys_perf_event_open - open a performance event, associate it to a task/cpu
  *
@@ -9746,11 +9805,30 @@ SYSCALL_DEFINE5(perf_event_open,
 	}
 
 	if (move_group) {
-		gctx = group_leader->ctx;
-		mutex_lock_double(&gctx->mutex, &ctx->mutex);
+		gctx = __perf_event_ctx_lock_double(group_leader, ctx);
+
 		if (gctx->task == TASK_TOMBSTONE) {
 			err = -ESRCH;
 			goto err_locked;
+		}
+
+		/*
+		 * Check if we raced against another sys_perf_event_open() call
+		 * moving the software group underneath us.
+		 */
+		if (!(group_leader->group_caps & PERF_EV_CAP_SOFTWARE)) {
+			/*
+			 * If someone moved the group out from under us, check
+			 * if this new event wound up on the same ctx, if so
+			 * its the regular !move_group case, otherwise fail.
+			 */
+			if (gctx != ctx) {
+				err = -EINVAL;
+				goto err_locked;
+			} else {
+				perf_event_ctx_unlock(group_leader, gctx);
+				move_group = 0;
+			}
 		}
 	} else {
 		mutex_lock(&ctx->mutex);
@@ -9853,7 +9931,7 @@ SYSCALL_DEFINE5(perf_event_open,
 	perf_unpin_context(ctx);
 
 	if (move_group)
-		mutex_unlock(&gctx->mutex);
+		perf_event_ctx_unlock(group_leader, gctx);
 	mutex_unlock(&ctx->mutex);
 
 	if (task) {
@@ -9879,7 +9957,7 @@ SYSCALL_DEFINE5(perf_event_open,
 
 err_locked:
 	if (move_group)
-		mutex_unlock(&gctx->mutex);
+		perf_event_ctx_unlock(group_leader, gctx);
 	mutex_unlock(&ctx->mutex);
 /* err_file: */
 	fput(event_file);
@@ -10255,6 +10333,17 @@ void perf_event_free_task(struct task_struct *task)
 			continue;
 
 		mutex_lock(&ctx->mutex);
+		raw_spin_lock_irq(&ctx->lock);
+		/*
+		 * Destroy the task <-> ctx relation and mark the context dead.
+		 *
+		 * This is important because even though the task hasn't been
+		 * exposed yet the context has been (through child_list).
+		 */
+		RCU_INIT_POINTER(task->perf_event_ctxp[ctxn], NULL);
+		WRITE_ONCE(ctx->task, TASK_TOMBSTONE);
+		put_task_struct(task); /* cannot be last */
+		raw_spin_unlock_irq(&ctx->lock);
 again:
 		list_for_each_entry_safe(event, tmp, &ctx->pinned_groups,
 				group_entry)
@@ -10508,7 +10597,7 @@ static int perf_event_init_context(struct task_struct *child, int ctxn)
 		ret = inherit_task_group(event, parent, parent_ctx,
 					 child, ctxn, &inherited_all);
 		if (ret)
-			break;
+			goto out_unlock;
 	}
 
 	/*
@@ -10524,7 +10613,7 @@ static int perf_event_init_context(struct task_struct *child, int ctxn)
 		ret = inherit_task_group(event, parent, parent_ctx,
 					 child, ctxn, &inherited_all);
 		if (ret)
-			break;
+			goto out_unlock;
 	}
 
 	raw_spin_lock_irqsave(&parent_ctx->lock, flags);
@@ -10552,6 +10641,7 @@ static int perf_event_init_context(struct task_struct *child, int ctxn)
 	}
 
 	raw_spin_unlock_irqrestore(&parent_ctx->lock, flags);
+out_unlock:
 	mutex_unlock(&parent_ctx->mutex);
 
 	perf_unpin_context(parent_ctx);

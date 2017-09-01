@@ -578,11 +578,11 @@ static irqreturn_t musb_stage0_irq(struct musb *musb, u8 int_usb,
 						| MUSB_PORT_STAT_RESUME;
 				musb->rh_timer = jiffies
 					+ msecs_to_jiffies(USB_RESUME_TIMEOUT);
-				musb->need_finish_resume = 1;
-
 				musb->xceiv->otg->state = OTG_STATE_A_HOST;
 				musb->is_active = 1;
 				musb_host_resume_root_hub(musb);
+				schedule_delayed_work(&musb->finish_resume_work,
+					msecs_to_jiffies(USB_RESUME_TIMEOUT));
 				break;
 			case OTG_STATE_B_WAIT_ACON:
 				musb->xceiv->otg->state = OTG_STATE_B_PERIPHERAL;
@@ -2467,8 +2467,8 @@ static int musb_remove(struct platform_device *pdev)
 	pm_runtime_get_sync(musb->controller);
 	musb_host_cleanup(musb);
 	musb_gadget_cleanup(musb);
-	spin_lock_irqsave(&musb->lock, flags);
 	musb_platform_disable(musb);
+	spin_lock_irqsave(&musb->lock, flags);
 	musb_generic_disable(musb);
 	spin_unlock_irqrestore(&musb->lock, flags);
 	musb_writeb(musb->mregs, MUSB_DEVCTL, 0);
@@ -2691,11 +2691,6 @@ static int musb_resume(struct device *dev)
 	mask = MUSB_DEVCTL_BDEVICE | MUSB_DEVCTL_FSDEV | MUSB_DEVCTL_LSDEV;
 	if ((devctl & mask) != (musb->context.devctl & mask))
 		musb->port1_status = 0;
-	if (musb->need_finish_resume) {
-		musb->need_finish_resume = 0;
-		schedule_delayed_work(&musb->finish_resume_work,
-				      msecs_to_jiffies(USB_RESUME_TIMEOUT));
-	}
 
 	/*
 	 * The USB HUB code expects the device to be in RPM_ACTIVE once it came
@@ -2746,12 +2741,6 @@ static int musb_runtime_resume(struct device *dev)
 		return 0;
 
 	musb_restore_context(musb);
-
-	if (musb->need_finish_resume) {
-		musb->need_finish_resume = 0;
-		schedule_delayed_work(&musb->finish_resume_work,
-				msecs_to_jiffies(USB_RESUME_TIMEOUT));
-	}
 
 	spin_lock_irqsave(&musb->lock, flags);
 	error = musb_run_resume_work(musb);

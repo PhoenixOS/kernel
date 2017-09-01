@@ -365,7 +365,11 @@ int x86_add_exclusive(unsigned int what)
 {
 	int i;
 
-	if (x86_pmu.lbr_pt_coexist)
+	/*
+	 * When lbr_pt_coexist we allow PT to coexist with either LBR or BTS.
+	 * LBR and BTS are still mutually exclusive.
+	 */
+	if (x86_pmu.lbr_pt_coexist && what == x86_lbr_exclusive_pt)
 		return 0;
 
 	if (!atomic_inc_not_zero(&x86_pmu.lbr_exclusive[what])) {
@@ -388,7 +392,7 @@ fail_unlock:
 
 void x86_del_exclusive(unsigned int what)
 {
-	if (x86_pmu.lbr_pt_coexist)
+	if (x86_pmu.lbr_pt_coexist && what == x86_lbr_exclusive_pt)
 		return;
 
 	atomic_dec(&x86_pmu.lbr_exclusive[what]);
@@ -2092,8 +2096,8 @@ static int x86_pmu_event_init(struct perf_event *event)
 
 static void refresh_pce(void *ignored)
 {
-	if (current->mm)
-		load_mm_cr4(current->mm);
+	if (current->active_mm)
+		load_mm_cr4(current->active_mm);
 }
 
 static void x86_pmu_event_mapped(struct perf_event *event)

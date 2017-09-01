@@ -90,7 +90,7 @@ struct detailed_mode_closure {
 #define LEVEL_GTF2	2
 #define LEVEL_CVT	3
 
-static struct edid_quirk {
+static const struct edid_quirk {
 	char vendor[4];
 	int product_id;
 	u32 quirks;
@@ -145,6 +145,9 @@ static struct edid_quirk {
 
 	/* Panel in Samsung NP700G7A-S01PL notebook reports 6bpc */
 	{ "SEC", 0xd033, EDID_QUIRK_FORCE_8BPC },
+
+	/* Rotel RSX-1058 forwards sink's EDID but only does HDMI 1.1*/
+	{ "ETR", 13896, EDID_QUIRK_FORCE_8BPC },
 };
 
 /*
@@ -1446,7 +1449,7 @@ EXPORT_SYMBOL(drm_edid_duplicate);
  *
  * Returns true if @vendor is in @edid, false otherwise
  */
-static bool edid_vendor(struct edid *edid, char *vendor)
+static bool edid_vendor(struct edid *edid, const char *vendor)
 {
 	char edid_vendor[3];
 
@@ -1466,7 +1469,7 @@ static bool edid_vendor(struct edid *edid, char *vendor)
  */
 static u32 edid_get_quirks(struct edid *edid)
 {
-	struct edid_quirk *quirk;
+	const struct edid_quirk *quirk;
 	int i;
 
 	for (i = 0; i < ARRAY_SIZE(edid_quirk_list); i++) {
